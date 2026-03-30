@@ -1,0 +1,32 @@
+# Build
+/target/
+**/*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Auth (never commit)
+auth.json
+
+# Background shell artifacts
+.bg-shell/
+
+# Planning DB (local state)
+*.db
+*.db-shm
+*.db-wal
+
+# Workflow state (local per-project)
+.fin/
+
+# Plans and CI (local only)
+.plans/
+.github/
