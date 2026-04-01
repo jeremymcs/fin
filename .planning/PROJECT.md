@@ -51,11 +51,10 @@ A fast, self-contained AI coding agent that runs a full workflow (Define → Bui
 <!-- Current scope for v1.1. -->
 
 - [ ] Auto-run panel shows blueprint id/name, current stage/action, last git commit, context memory %, keybind hints
-- [ ] Toast notifications for tool events, errors, and stage transitions (ephemeral, auto-dismiss)
+- ✓ Toast notifications for tool events, errors, and stage transitions (ephemeral, auto-dismiss) — Validated in Phase 2: Overlays
 - [ ] Auto-run panel shows blueprint id/name, current stage/action, last git commit, context memory %, keybind hints
-- [ ] Toast notifications for tool events, errors, and stage transitions (ephemeral, auto-dismiss)
 - ✓ Assistant output renders **bold** and *italic* and `inline code` markdown (not raw asterisks) — Validated in Phase 1: Foundation
-- [ ] `?` key shows keybindings and slash command help overlay
+- ✓ `?` key shows keybindings and slash command help overlay — Validated in Phase 2: Overlays
 - ✓ Token/cost display improvements (per-message cost annotation + abbreviated status bar counts) — Validated in Phase 1: Foundation
 - ✓ Visual theme consistency pass (Palette constants, amber accent, no inline Color:: in render functions) — Validated in Phase 1: Foundation
 - [ ] Toggle-able side info panel (Ctrl+P: model, tokens, workflow state)
