@@ -174,6 +174,13 @@ pub async fn run_agent_loop(
 
         if tool_calls.is_empty() {
             io.emit(AgentEvent::TurnEnd).await?;
+            io.emit(AgentEvent::ContextUsage {
+                pct: crate::tui::widgets::compute_context_pct(
+                    state.cumulative_usage.input_tokens,
+                    state.model.context_window,
+                ),
+            })
+            .await?;
 
             // Check for follow-up messages
             if let Some(follow_up) = io.poll_follow_up().await {
@@ -247,6 +254,13 @@ pub async fn run_agent_loop(
         }
 
         io.emit(AgentEvent::TurnEnd).await?;
+        io.emit(AgentEvent::ContextUsage {
+            pct: crate::tui::widgets::compute_context_pct(
+                state.cumulative_usage.input_tokens,
+                state.model.context_window,
+            ),
+        })
+        .await?;
     }
 
     io.emit(AgentEvent::AgentEnd {
@@ -314,6 +328,9 @@ async fn process_stream(
                 })
                 .await?;
                 message.push_thinking(&delta);
+            }
+            StreamEvent::ThinkingSignature { signature, .. } => {
+                message.set_last_thinking_signature(&signature);
             }
             StreamEvent::ToolCallDelta { delta, .. } => {
                 message.push_tool_call_delta(&delta);

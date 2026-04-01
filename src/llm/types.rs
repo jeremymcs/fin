@@ -210,6 +210,10 @@ pub enum StreamEvent {
         index: usize,
         delta: String,
     },
+    ThinkingSignature {
+        index: usize,
+        signature: String,
+    },
     ToolCallDelta {
         index: usize,
         delta: String,
