@@ -682,6 +682,20 @@ async fn run_tui_loop(
                 AgentEvent::StageTransition { from, to } => {
                     push_toast(&mut toasts, format!("{from} → {to}"), ToastKind::Info);
                 }
+                // New Phase 3 variants — handled in detail by Wave 2/3 plans
+                AgentEvent::AutoModeStart => {
+                    workflow_state.is_auto = true;
+                }
+                AgentEvent::AutoModeEnd => {
+                    workflow_state.is_auto = false;
+                }
+                AgentEvent::ContextUsage { pct } => {
+                    workflow_state.context_pct = pct;
+                }
+                AgentEvent::GitCommitUpdate { hash, msg } => {
+                    workflow_state.last_commit_hash = hash;
+                    workflow_state.last_commit_msg = msg;
+                }
             }
         }
 
@@ -1584,6 +1598,7 @@ async fn run_tui_agent(
                     let resume_cwd = cwd.clone();
                     let resume_model = state.model.clone();
 
+                    let _ = event_tx.send(AgentEvent::AutoModeStart);
                     let resume_fut = async {
                         let provider = resume_pr
                             .get(&resume_model.provider)
@@ -1626,6 +1641,7 @@ async fn run_tui_agent(
                             }
                         }
                     }
+                    let _ = event_tx.send(AgentEvent::AutoModeEnd);
                 }
 
                 _ => {
@@ -1878,6 +1894,7 @@ async fn run_tui_agent(
 
             if stage_name == "auto" {
                 // Dispatch-driven — let the loop figure out what to run
+                let _ = event_tx.send(AgentEvent::AutoModeStart);
                 let result = crate::workflow::auto_loop::run_loop(
                     &cwd,
                     &model,
@@ -1893,6 +1910,7 @@ async fn run_tui_agent(
                     result.units_run,
                     result.outcome
                 );
+                let _ = event_tx.send(AgentEvent::AutoModeEnd);
             } else {
                 // Specific stage — run it directly
                 let fin_dir = crate::workflow::state::FinDir::new(&cwd);
