@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: TUI Enhancement
 status: executing
-stopped_at: Completed 03-01-PLAN.md
-last_updated: "2026-04-01T21:44:32.479Z"
+stopped_at: Completed 03-02-PLAN.md
+last_updated: "2026-04-01T22:00:42.336Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 9
-  completed_plans: 6
+  completed_plans: 7
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 ## Current Position
 
 Phase: 03 (auto-run-panel) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-04-01
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P03 | 3 | 3 tasks | 2 files |
 | Phase 02-overlays P01 | 6 | 2 tasks | 6 files |
 | Phase 03 P01 | 8 | 2 tasks | 3 files |
+| Phase 03 P02 | 15 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -77,6 +78,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 02-overlays]: Palette not in worktree (Phase 1 not present) — used Color::Yellow and Color::DarkGray directly for help overlay; ANSI named colors per Phase 1 decision
 - [Phase 03]: StageTransition variant added to AgentEvent — referenced in plan interface spec but absent from actual file; added as part of contract layer in plan 01
 - [Phase 03]: parse_git_log_line and compute_context_pct are pure module-level functions in widgets.rs — testable without TUI frame context
+- [Phase 03]: tui_event_tx clone created before agent_event_tx moves into spawned agent task — enables drain loop to spawn git fetch tasks that post events back
+- [Phase 03]: WorkflowUnitEnd spawns tokio task for non-blocking git fetch — avoids stalling TUI event loop
 
 ### Pending Todos
 
@@ -90,6 +93,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T21:44:32.474Z
-Stopped at: Completed 03-01-PLAN.md
+Last session: 2026-04-01T22:00:42.334Z
+Stopped at: Completed 03-02-PLAN.md
 Resume file: None

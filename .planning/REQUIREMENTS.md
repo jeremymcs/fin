@@ -41,7 +41,7 @@
 
 - [x] **AUTO-01**: During auto-loop execution, the workflow panel shows the active blueprint ID and name alongside the current model
 - [x] **AUTO-02**: During auto-loop execution, the workflow panel shows the current stage and section/task being executed
-- [ ] **AUTO-03**: During auto-loop execution, the workflow panel shows the short git hash and message of the last commit
+- [x] **AUTO-03**: During auto-loop execution, the workflow panel shows the short git hash and message of the last commit
 - [ ] **AUTO-04**: During auto-loop execution, the workflow panel shows context window usage as a percentage
 - [ ] **AUTO-05**: During auto-loop execution, the workflow panel footer shows `esc pause | ? help` keybind hints
 - [x] **AUTO-06**: Existing stage pipeline (✓/●/○) and progress bar are preserved — auto-run rows are additive
@@ -99,7 +99,7 @@
 | HELP-03 | Phase 2: Overlays | Complete |
 | AUTO-01 | Phase 3: Auto-Run Panel | Complete |
 | AUTO-02 | Phase 3: Auto-Run Panel | Complete |
-| AUTO-03 | Phase 3: Auto-Run Panel | Pending |
+| AUTO-03 | Phase 3: Auto-Run Panel | Complete |
 | AUTO-04 | Phase 3: Auto-Run Panel | Pending |
 | AUTO-05 | Phase 3: Auto-Run Panel | Pending |
 | AUTO-06 | Phase 3: Auto-Run Panel | Complete |
