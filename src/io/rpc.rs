@@ -223,6 +223,11 @@ impl AgentIO for RpcIO {
                 e.is_error = Some(true);
                 e
             }
+            AgentEvent::StageTransition { ref from, ref to } => {
+                let mut e = RpcEvent::new("workflow_stage_transition");
+                e.data = Some(serde_json::json!({"from": from, "to": to}));
+                e
+            }
         };
         rpc.emit();
         Ok(())

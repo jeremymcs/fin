@@ -523,6 +523,9 @@ async fn run_tui_loop(
                         workflow_state.active,
                     );
                 }
+                AgentEvent::StageTransition { .. } => {
+                    // Toast push will be added in Plan 02 — no-op for now
+                }
             }
         }
 

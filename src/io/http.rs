@@ -274,6 +274,9 @@ async fn prompt_stream_handler(
             AgentEvent::WorkflowError { message } => {
                 serde_json::json!({"type": "workflow_error", "message": message})
             }
+            AgentEvent::StageTransition { from, to } => {
+                serde_json::json!({"type": "workflow_stage_transition", "from": from, "to": to})
+            }
             _ => serde_json::json!({"type": "other"}),
         };
         Ok(sse::Event::default().data(data.to_string()))
@@ -522,6 +525,9 @@ async fn dispatch_handler(
             }
             AgentEvent::ToolEnd { name, is_error, .. } => {
                 serde_json::json!({"type": "tool_end", "name": name, "is_error": is_error})
+            }
+            AgentEvent::StageTransition { from, to } => {
+                serde_json::json!({"type": "workflow_stage_transition", "from": from, "to": to})
             }
             _ => serde_json::json!({"type": "other"}),
         };

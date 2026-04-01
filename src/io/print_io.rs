@@ -110,6 +110,9 @@ impl AgentIO for PrintIO {
             AgentEvent::WorkflowError { ref message } => {
                 eprintln!("\n\x1b[31m✗ Workflow error: {message}\x1b[0m");
             }
+            AgentEvent::StageTransition { ref from, ref to } => {
+                eprintln!("\x1b[36m{from} → {to}\x1b[0m");
+            }
         }
         Ok(())
     }
