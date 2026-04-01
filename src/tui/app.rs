@@ -34,15 +34,32 @@ use tokio_util::sync::CancellationToken;
 /// Per D-05: prerequisite for Phases 3 and 4 layout changes.
 /// Per D-06: handles both workflow-active and workflow-inactive variants.
 struct AppLayout {
-    output:   Rect,
+    output: Rect,
     workflow: Option<Rect>,
-    status:   Rect,
-    input:    Rect,
+    status: Rect,
+    input: Rect,
 }
 
 impl AppLayout {
-    fn compute(area: Rect, wf_active: bool) -> Self {
-        if wf_active {
+    fn compute(area: Rect, wf_active: bool, wf_auto: bool) -> Self {
+        if wf_active && wf_auto {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(3),    // output
+                    Constraint::Length(9), // workflow panel — auto mode (7 inner + 2 border)
+                    Constraint::Length(1), // spacer
+                    Constraint::Length(1), // status bar
+                    Constraint::Length(2), // input
+                ])
+                .split(area);
+            AppLayout {
+                output: chunks[0],
+                workflow: Some(chunks[1]),
+                status: chunks[3],
+                input: chunks[4],
+            }
+        } else if wf_active {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .constraints([
@@ -54,10 +71,10 @@ impl AppLayout {
                 ])
                 .split(area);
             AppLayout {
-                output:   chunks[0],
+                output: chunks[0],
                 workflow: Some(chunks[1]),
-                status:   chunks[3],
-                input:    chunks[4],
+                status: chunks[3],
+                input: chunks[4],
             }
         } else {
             let chunks = Layout::default()
@@ -70,10 +87,10 @@ impl AppLayout {
                 ])
                 .split(area);
             AppLayout {
-                output:   chunks[0],
+                output: chunks[0],
                 workflow: None,
-                status:   chunks[2],
-                input:    chunks[3],
+                status: chunks[2],
+                input: chunks[3],
             }
         }
     }
@@ -306,7 +323,7 @@ async fn run_tui_loop(
         // Draw UI
         terminal.draw(|f| {
             let wf_active = workflow_state.active;
-            let layout = AppLayout::compute(f.area(), wf_active);
+            let layout = AppLayout::compute(f.area(), wf_active, workflow_state.is_auto);
 
             // Output area: splash or conversation
             if show_splash {
@@ -329,7 +346,11 @@ async fn run_tui_loop(
                 total_cost,
                 is_streaming,
                 !scroll_pinned,
-                if wf_active { Some(&workflow_state) } else { None },
+                if wf_active {
+                    Some(&workflow_state)
+                } else {
+                    None
+                },
             );
             f.render_widget(status, layout.status);
 
@@ -377,9 +398,7 @@ async fn run_tui_loop(
                 let picker = ratatui::widgets::Paragraph::new(items).block(
                     ratatui::widgets::Block::bordered()
                         .title(" Select Model (↑↓ Enter Esc) ")
-                        .border_style(
-                            ratatui::style::Style::default().fg(Palette::ACCENT),
-                        ),
+                        .border_style(ratatui::style::Style::default().fg(Palette::ACCENT)),
                 );
                 f.render_widget(picker, picker_area);
             }
@@ -453,11 +472,10 @@ async fn run_tui_loop(
                         ToastKind::Success => Palette::ACCENT,
                         ToastKind::Info => Palette::DIM,
                     };
-                    let toast_widget = ratatui::widgets::Paragraph::new(msg.as_str())
-                        .block(
-                            ratatui::widgets::Block::bordered()
-                                .border_style(ratatui::style::Style::default().fg(border_color)),
-                        );
+                    let toast_widget = ratatui::widgets::Paragraph::new(msg.as_str()).block(
+                        ratatui::widgets::Block::bordered()
+                            .border_style(ratatui::style::Style::default().fg(border_color)),
+                    );
                     f.render_widget(toast_widget, toast_area);
                 }
             }
@@ -473,7 +491,11 @@ async fn run_tui_loop(
         let timeout = std::time::Duration::from_millis(50);
 
         // Expire oldest toast if TTL elapsed (per D-08: Instant-based, immune to event flood)
-        while toasts.front().map(|(_, t, _)| t.elapsed() >= TOAST_TTL).unwrap_or(false) {
+        while toasts
+            .front()
+            .map(|(_, t, _)| t.elapsed() >= TOAST_TTL)
+            .unwrap_or(false)
+        {
             toasts.pop_front();
         }
 
@@ -498,7 +520,9 @@ async fn run_tui_loop(
                             }
                         } else {
                             // Newline boundary — finalize the previous assistant line (D-08)
-                            if let Some(prev) = output_lines.iter_mut().rev()
+                            if let Some(prev) = output_lines
+                                .iter_mut()
+                                .rev()
                                 .find(|l| matches!(l.kind, LineKind::Assistant))
                             {
                                 prev.is_final = true;
@@ -555,7 +579,9 @@ async fn run_tui_loop(
                     is_streaming = false;
 
                     // Finalize last assistant line unconditionally (D-08: enables markdown parsing)
-                    if let Some(last) = output_lines.iter_mut().rev()
+                    if let Some(last) = output_lines
+                        .iter_mut()
+                        .rev()
                         .find(|l| matches!(l.kind, LineKind::Assistant))
                     {
                         last.is_final = true;
@@ -585,12 +611,16 @@ async fn run_tui_loop(
                 }
                 AgentEvent::ModelChanged { display_name } => {
                     model_for_display = display_name.clone();
-                    workflow_state.model_display = display_name.clone();  // D-14: keep panel in sync
+                    workflow_state.model_display = display_name.clone(); // D-14: keep panel in sync
                     output_lines.push(OutputLine::system(format!(
                         "Model switched to {display_name}"
                     )));
                     output_lines.push(OutputLine::system(String::new()));
-                    push_toast(&mut toasts, format!("Model: {display_name}"), ToastKind::Info);
+                    push_toast(
+                        &mut toasts,
+                        format!("Model: {display_name}"),
+                        ToastKind::Info,
+                    );
                     auto_scroll(
                         &output_lines,
                         &mut scroll,
@@ -661,7 +691,11 @@ async fn run_tui_loop(
                         "✓ Blueprint {blueprint_id} complete ({units_run} units)"
                     )));
                     output_lines.push(OutputLine::system(String::new()));
-                    push_toast(&mut toasts, format!("✓ {blueprint_id} complete"), ToastKind::Success);
+                    push_toast(
+                        &mut toasts,
+                        format!("✓ {blueprint_id} complete"),
+                        ToastKind::Success,
+                    );
                     auto_scroll(
                         &output_lines,
                         &mut scroll,
@@ -674,7 +708,11 @@ async fn run_tui_loop(
                     workflow_state.active = false;
                     output_lines.push(OutputLine::system(format!("⏸ Blocked: {reason}")));
                     output_lines.push(OutputLine::system(String::new()));
-                    push_toast(&mut toasts, format!("⏸ Blocked: {reason}"), ToastKind::Success);
+                    push_toast(
+                        &mut toasts,
+                        format!("⏸ Blocked: {reason}"),
+                        ToastKind::Success,
+                    );
                     auto_scroll(
                         &output_lines,
                         &mut scroll,
@@ -905,8 +943,15 @@ async fn run_tui_loop(
                                     // /ship — squash-merge section branch to main
                                     if cmd == "ship" {
                                         output_lines.push(OutputLine::user(format!("> {prompt}")));
-                                        output_lines.push(OutputLine::system("Shipping...".to_string()));
-                                        auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                        output_lines
+                                            .push(OutputLine::system("Shipping...".to_string()));
+                                        auto_scroll(
+                                            &output_lines,
+                                            &mut scroll,
+                                            terminal.size()?.height,
+                                            scroll_pinned,
+                                            workflow_state.active,
+                                        );
                                         let _ = user_msg_tx.send("__ship__".to_string());
                                         continue;
                                     }
@@ -914,8 +959,16 @@ async fn run_tui_loop(
                                     // /map — map codebase using TUI agent
                                     if cmd == "map" {
                                         output_lines.push(OutputLine::user(format!("> {prompt}")));
-                                        output_lines.push(OutputLine::system("Mapping codebase...".to_string()));
-                                        auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                        output_lines.push(OutputLine::system(
+                                            "Mapping codebase...".to_string(),
+                                        ));
+                                        auto_scroll(
+                                            &output_lines,
+                                            &mut scroll,
+                                            terminal.size()?.height,
+                                            scroll_pinned,
+                                            workflow_state.active,
+                                        );
                                         let _ = user_msg_tx.send("__map__".to_string());
                                         continue;
                                     }
@@ -925,19 +978,38 @@ async fn run_tui_loop(
                                         output_lines.push(OutputLine::user(format!("> {prompt}")));
                                         let fin_dir = crate::workflow::state::FinDir::new(&cwd);
                                         if !fin_dir.exists() {
-                                            output_lines.push(OutputLine::system("No .fin/ directory. Run /init first.".to_string()));
+                                            output_lines.push(OutputLine::system(
+                                                "No .fin/ directory. Run /init first.".to_string(),
+                                            ));
                                         } else {
-                                            output_lines.push(OutputLine::system("Resuming from handoff...".to_string()));
-                                            auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                            output_lines.push(OutputLine::system(
+                                                "Resuming from handoff...".to_string(),
+                                            ));
+                                            auto_scroll(
+                                                &output_lines,
+                                                &mut scroll,
+                                                terminal.size()?.height,
+                                                scroll_pinned,
+                                                workflow_state.active,
+                                            );
                                             let _ = user_msg_tx.send("__stage:build__".to_string());
                                         }
-                                        auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                        auto_scroll(
+                                            &output_lines,
+                                            &mut scroll,
+                                            terminal.size()?.height,
+                                            scroll_pinned,
+                                            workflow_state.active,
+                                        );
                                         continue;
                                     }
 
                                     // /worktree — worktree management
                                     if cmd == "worktree" {
-                                        let wt_args = rest.split_once(' ').map(|(_, a)| a.trim()).unwrap_or("list");
+                                        let wt_args = rest
+                                            .split_once(' ')
+                                            .map(|(_, a)| a.trim())
+                                            .unwrap_or("list");
                                         output_lines.push(OutputLine::user(format!("> {prompt}")));
                                         let _ = user_msg_tx.send(format!("__worktree:{wt_args}__"));
                                         continue;
@@ -1264,7 +1336,10 @@ async fn run_tui_agent(
         None => {
             tracing::error!("Provider not found: {}", model.provider);
             let _ = event_tx.send(AgentEvent::WorkflowError {
-                message: format!("Provider '{}' not configured. Check API key.", model.provider),
+                message: format!(
+                    "Provider '{}' not configured. Check API key.",
+                    model.provider
+                ),
             });
             return;
         }
@@ -1602,13 +1677,9 @@ async fn run_tui_agent(
                         text: "Resuming workflow...\n\n".to_string(),
                     });
                     let (follow_up_tx, follow_up_rx) = mpsc::unbounded_channel::<String>();
-                    let (_resume_steer_tx, resume_steer_rx) =
-                        mpsc::unbounded_channel::<Message>();
-                    let resume_io = TuiIO::with_follow_up(
-                        event_tx.clone(),
-                        resume_steer_rx,
-                        follow_up_rx,
-                    );
+                    let (_resume_steer_tx, resume_steer_rx) = mpsc::unbounded_channel::<Message>();
+                    let resume_io =
+                        TuiIO::with_follow_up(event_tx.clone(), resume_steer_rx, follow_up_rx);
                     let resume_cancel = cancel.clone();
                     let resume_pr = Arc::clone(&provider_registry);
                     let resume_cwd = cwd.clone();
@@ -1616,9 +1687,7 @@ async fn run_tui_agent(
 
                     let _ = event_tx.send(AgentEvent::AutoModeStart);
                     let resume_fut = async {
-                        let provider = resume_pr
-                            .get(&resume_model.provider)
-                            .expect("provider");
+                        let provider = resume_pr.get(&resume_model.provider).expect("provider");
                         crate::workflow::auto_loop::run_loop(
                             &resume_cwd,
                             &resume_model,
@@ -1732,7 +1801,8 @@ async fn run_tui_agent(
                     let runner = crate::workflow::commands::get_stage_runner(stage);
 
                     let stage_cancel = cancel.clone();
-                    let stage_fut = runner.run(&ctx, &fin_dir, &state.model, provider, &io, stage_cancel);
+                    let stage_fut =
+                        runner.run(&ctx, &fin_dir, &state.model, provider, &io, stage_cancel);
 
                     tokio::pin!(stage_fut);
                     loop {
@@ -1790,7 +1860,11 @@ async fn run_tui_agent(
                     });
                 }
             }
-            let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+            let _ = io
+                .emit(AgentEvent::AgentEnd {
+                    usage: crate::llm::types::Usage::default(),
+                })
+                .await;
             continue;
         }
 
@@ -1803,7 +1877,11 @@ async fn run_tui_agent(
                 let _ = event_tx.send(AgentEvent::TextDelta {
                     text: "No .fin/ directory. Run /init first.\n".to_string(),
                 });
-                let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+                let _ = io
+                    .emit(AgentEvent::AgentEnd {
+                        usage: crate::llm::types::Usage::default(),
+                    })
+                    .await;
                 continue;
             }
             let _ = event_tx.send(AgentEvent::TextDelta {
@@ -1821,33 +1899,50 @@ async fn run_tui_agent(
                 agent_role: Some(prompt_content),
             };
             let system_prompt = crate::agent::prompt::build_system_prompt(
-                &tool_registry.schemas(), &cwd, Some(&agent_context),
+                &tool_registry.schemas(),
+                &cwd,
+                Some(&agent_context),
             );
             let mut map_state = crate::agent::state::AgentState::new(model.clone(), cwd.clone());
             map_state.tool_registry = tool_registry;
             map_state.system_prompt = system_prompt;
-            map_state.messages.push(crate::llm::types::Message::new_user(
-                "Map this codebase. Follow the instructions in your system prompt exactly.",
-            ));
-            if let Err(e) = crate::agent::agent_loop::run_agent_loop(&mut map_state, provider, &io, cancel_map).await {
+            map_state
+                .messages
+                .push(crate::llm::types::Message::new_user(
+                    "Map this codebase. Follow the instructions in your system prompt exactly.",
+                ));
+            if let Err(e) =
+                crate::agent::agent_loop::run_agent_loop(&mut map_state, provider, &io, cancel_map)
+                    .await
+            {
                 let _ = event_tx.send(AgentEvent::TextDelta {
                     text: format!("Map failed: {e}\n"),
                 });
             } else {
                 let map_path = fin_dir.map_path();
                 let msg = if map_path.exists() {
-                    format!("\nMap saved to {}. All agents will reference this.\n", map_path.display())
+                    format!(
+                        "\nMap saved to {}. All agents will reference this.\n",
+                        map_path.display()
+                    )
                 } else {
                     "\nWarning: CODEBASE_MAP.md was not written.\n".to_string()
                 };
                 let _ = event_tx.send(AgentEvent::TextDelta { text: msg });
             }
-            let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+            let _ = io
+                .emit(AgentEvent::AgentEnd {
+                    usage: crate::llm::types::Usage::default(),
+                })
+                .await;
             continue;
         }
 
         // Handle /worktree — worktree management
-        if let Some(wt_args) = prompt.strip_prefix("__worktree:").and_then(|s| s.strip_suffix("__")) {
+        if let Some(wt_args) = prompt
+            .strip_prefix("__worktree:")
+            .and_then(|s| s.strip_suffix("__"))
+        {
             let (_steer_tx, steer_rx) = mpsc::unbounded_channel::<Message>();
             let io = TuiIO::new(event_tx.clone(), steer_rx);
             let parts: Vec<&str> = wt_args.splitn(2, ' ').collect();
@@ -1855,34 +1950,42 @@ async fn run_tui_agent(
             let action_arg = parts.get(1).copied().unwrap_or("");
             let action = match action_str {
                 "list" | "" => Some(crate::cli::WorktreeAction::List),
-                "create" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Create { name: action_arg.to_string() }),
-                "merge" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Merge { name: action_arg.to_string() }),
-                "remove" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Remove { name: action_arg.to_string() }),
+                "create" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Create {
+                    name: action_arg.to_string(),
+                }),
+                "merge" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Merge {
+                    name: action_arg.to_string(),
+                }),
+                "remove" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Remove {
+                    name: action_arg.to_string(),
+                }),
                 "clean" => Some(crate::cli::WorktreeAction::Clean),
                 _ => None,
             };
             match action {
-                Some(a) => {
-                    match crate::worktree::handle_worktree(a).await {
-                        Ok(()) => {
-                            let _ = event_tx.send(AgentEvent::TextDelta {
-                                text: format!("Worktree {action_str} complete.\n"),
-                            });
-                        }
-                        Err(e) => {
-                            let _ = event_tx.send(AgentEvent::TextDelta {
-                                text: format!("Worktree error: {e}\n"),
-                            });
-                        }
+                Some(a) => match crate::worktree::handle_worktree(a).await {
+                    Ok(()) => {
+                        let _ = event_tx.send(AgentEvent::TextDelta {
+                            text: format!("Worktree {action_str} complete.\n"),
+                        });
                     }
-                }
+                    Err(e) => {
+                        let _ = event_tx.send(AgentEvent::TextDelta {
+                            text: format!("Worktree error: {e}\n"),
+                        });
+                    }
+                },
                 None => {
                     let _ = event_tx.send(AgentEvent::TextDelta {
                         text: "Usage: /worktree [list|create <name>|merge <name>|remove <name>|clean]\n".to_string(),
                     });
                 }
             }
-            let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+            let _ = io
+                .emit(AgentEvent::AgentEnd {
+                    usage: crate::llm::types::Usage::default(),
+                })
+                .await;
             continue;
         }
 
@@ -2189,12 +2292,10 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
             // Handled in the agent task via __blueprint:__ routing
             Ok("Blueprint command dispatched to agent.".into())
         }
-        "pause" => {
-            match crate::workflow::commands::cmd_pause(cwd) {
-                Ok(()) => Ok("Paused. Use /resume to continue from a handoff.".into()),
-                Err(e) => Ok(format!("Pause failed: {e}")),
-            }
-        }
+        "pause" => match crate::workflow::commands::cmd_pause(cwd) {
+            Ok(()) => Ok("Paused. Use /resume to continue from a handoff.".into()),
+            Err(e) => Ok(format!("Pause failed: {e}")),
+        },
         "config" => {
             let sub = _args.trim();
             if sub.is_empty() || sub == "list-keys" {
@@ -2240,8 +2341,8 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
                     ));
                 }
                 let paths = crate::config::paths::FinPaths::resolve()?;
-                let mut auth = crate::config::auth::AuthStore::load(&paths.auth_file)
-                    .unwrap_or_default();
+                let mut auth =
+                    crate::config::auth::AuthStore::load(&paths.auth_file).unwrap_or_default();
                 auth.set_api_key(provider, key.to_string());
                 auth.save(&paths.auth_file)?;
                 // Also inject into the current process env so the running provider
@@ -2256,20 +2357,24 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
                 if let Some(var) = env_var {
                     // Safety: single-threaded at this point in the TUI event loop;
                     // no other threads are reading this env var concurrently.
-                    unsafe { std::env::set_var(var, key); }
+                    unsafe {
+                        std::env::set_var(var, key);
+                    }
                 }
                 Ok(format!("{provider} key saved."))
             } else if let Some(rest) = sub.strip_prefix("remove-key ") {
                 let provider = rest.trim();
                 let paths = crate::config::paths::FinPaths::resolve()?;
-                let mut auth = crate::config::auth::AuthStore::load(&paths.auth_file)
-                    .unwrap_or_default();
+                let mut auth =
+                    crate::config::auth::AuthStore::load(&paths.auth_file).unwrap_or_default();
                 auth.remove_api_key(provider);
                 auth.save(&paths.auth_file)?;
                 Ok(format!("{provider} key removed."))
             } else {
-                Ok("Usage: /config [list-keys | set-key <provider> <key> | remove-key <provider>]"
-                    .into())
+                Ok(
+                    "Usage: /config [list-keys | set-key <provider> <key> | remove-key <provider>]"
+                        .into(),
+                )
             }
         }
         "sessions" => {
@@ -2369,12 +2474,20 @@ mod tests {
     #[test]
     fn toast_workflow_terminal() {
         let mut toasts: VecDeque<(String, Instant, ToastKind)> = VecDeque::new();
-        push_toast(&mut toasts, "✓ B001 complete".to_string(), ToastKind::Success);
+        push_toast(
+            &mut toasts,
+            "✓ B001 complete".to_string(),
+            ToastKind::Success,
+        );
         assert_eq!(toasts.len(), 1);
         assert!(toasts.front().unwrap().0.contains("complete"));
 
         toasts.clear();
-        push_toast(&mut toasts, "⏸ Blocked: needs input".to_string(), ToastKind::Success);
+        push_toast(
+            &mut toasts,
+            "⏸ Blocked: needs input".to_string(),
+            ToastKind::Success,
+        );
         assert_eq!(toasts.len(), 1);
         assert!(toasts.front().unwrap().0.contains("Blocked"));
     }
@@ -2399,7 +2512,11 @@ mod tests {
         ));
         assert_eq!(toasts.len(), 1);
         // Run expiry check
-        while toasts.front().map(|(_, t, _)| t.elapsed() >= TOAST_TTL).unwrap_or(false) {
+        while toasts
+            .front()
+            .map(|(_, t, _)| t.elapsed() >= TOAST_TTL)
+            .unwrap_or(false)
+        {
             toasts.pop_front();
         }
         assert_eq!(toasts.len(), 0);
