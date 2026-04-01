@@ -11,13 +11,25 @@ use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 pub struct Palette;
 
 impl Palette {
-    pub const ACCENT: Color = Color::Yellow;      // D-01: amber accent
-    pub const TOOL: Color = Color::Cyan;           // D-02: tool-call highlight
-    pub const TEXT: Color = Color::White;          // body text
-    pub const DIM: Color = Color::DarkGray;        // subdued, borders, thinking
-    pub const SUCCESS: Color = Color::Green;       // user text, tool results, done markers
-    pub const ERROR: Color = Color::Red;           // error lines
-    pub const STATUS_BG: Color = Color::DarkGray;  // status bar background
+    pub const ACCENT: Color = Color::Yellow; // D-01: amber accent
+    pub const TOOL: Color = Color::Cyan; // D-02: tool-call highlight
+    pub const TEXT: Color = Color::White; // body text
+    pub const DIM: Color = Color::DarkGray; // subdued, borders, thinking
+    pub const SUCCESS: Color = Color::Green; // user text, tool results, done markers
+    pub const ERROR: Color = Color::Red; // error lines
+    pub const STATUS_BG: Color = Color::DarkGray; // status bar background
+}
+
+/// Footer hint text shown in auto-mode panel (AUTO-05).
+pub const FOOTER_HINTS: &str = "esc pause  │  ? help";
+
+/// Truncate string to max chars, appending U+2026 ellipsis if needed.
+fn truncate_str(s: &str, max: usize) -> String {
+    if s.chars().count() > max {
+        format!("{}…", s.chars().take(max - 1).collect::<String>())
+    } else {
+        s.to_string()
+    }
 }
 
 /// Splash screen info for rendering the startup banner.
@@ -151,11 +163,19 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
         }
         ext_spans.push(Span::styled(
             name.clone(),
-            Style::default().fg(if *ok { Palette::SUCCESS } else { Palette::ERROR }),
+            Style::default().fg(if *ok {
+                Palette::SUCCESS
+            } else {
+                Palette::ERROR
+            }),
         ));
         ext_spans.push(Span::styled(
             if *ok { " ✓" } else { " ✗" },
-            Style::default().fg(if *ok { Palette::SUCCESS } else { Palette::ERROR }),
+            Style::default().fg(if *ok {
+                Palette::SUCCESS
+            } else {
+                Palette::ERROR
+            }),
         ));
     }
     f.render_widget(Paragraph::new(Line::from(ext_spans)), info_layout[6]);
@@ -190,7 +210,8 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
                 } else {
                     // Finalized line — apply markdown rendering (D-10: Assistant only)
                     let text = &line.text;
-                    if text.starts_with("# ") || text.starts_with("## ") || text.starts_with("### ") {
+                    if text.starts_with("# ") || text.starts_with("## ") || text.starts_with("### ")
+                    {
                         // Markdown headers — bold accent
                         spans_lines.push(Line::styled(
                             text.clone(),
@@ -206,9 +227,10 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
                         // Unordered bullet lists — accent prefix + markdown-parsed content
                         let content = text.trim_start_matches("- ").trim_start_matches("* ");
                         let base_style = Style::default().fg(Palette::TEXT);
-                        let mut spans = vec![
-                            Span::styled("  \u{2022} ", Style::default().fg(Palette::ACCENT)),
-                        ];
+                        let mut spans = vec![Span::styled(
+                            "  \u{2022} ",
+                            Style::default().fg(Palette::ACCENT),
+                        )];
                         spans.extend(parse_inline_spans(content, base_style));
                         spans_lines.push(Line::from(spans));
                     } else if is_numbered_list(text) {
@@ -217,9 +239,10 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
                         let num = &text[..dot_pos + 1];
                         let content = text[dot_pos + 2..].to_string();
                         let base_style = Style::default().fg(Palette::TEXT);
-                        let mut spans = vec![
-                            Span::styled(format!("  {num} "), Style::default().fg(Palette::ACCENT)),
-                        ];
+                        let mut spans = vec![Span::styled(
+                            format!("  {num} "),
+                            Style::default().fg(Palette::ACCENT),
+                        )];
                         spans.extend(parse_inline_spans(&content, base_style));
                         spans_lines.push(Line::from(spans));
                     } else if text.ends_with('?') {
@@ -431,12 +454,28 @@ pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
         return;
     }
 
+    let row_constraints: Vec<Constraint> = if state.is_auto && state.active {
+        vec![
+            Constraint::Length(1), // row 0: pipeline (unchanged)
+            Constraint::Length(1), // row 1: progress bar (unchanged)
+            Constraint::Length(1), // row 2: model + blueprint
+            Constraint::Length(1), // row 3: stage + section
+            Constraint::Length(1), // row 4: last commit
+            Constraint::Length(1), // row 5: context % bar
+            Constraint::Length(1), // row 6: footer hints
+        ]
+    } else {
+        vec![
+            Constraint::Length(1), // row 0: pipeline (unchanged)
+            Constraint::Length(1), // row 1: progress bar (unchanged)
+        ]
+    };
     let layout = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Length(1), Constraint::Length(1)])
+        .constraints(row_constraints)
         .split(inner);
 
-    // Line 1: Stage pipeline
+    // Row 0: Stage pipeline (AUTO-06 — unchanged)
     let mut pipeline_spans: Vec<Span> = Vec::new();
     for (i, (name, status)) in state.stage_pipeline.iter().enumerate() {
         if i > 0 {
@@ -454,7 +493,7 @@ pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
     }
     f.render_widget(Paragraph::new(Line::from(pipeline_spans)), layout[0]);
 
-    // Line 2: Progress bar + counts
+    // Row 1: Progress bar + counts (AUTO-06 — unchanged)
     let (label, done, total) = if state.tasks_total > 0 {
         let sec = state.current_section.as_deref().unwrap_or("");
         (format!("{sec}: "), state.tasks_done, state.tasks_total)
@@ -486,6 +525,91 @@ pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
         ),
     ];
     f.render_widget(Paragraph::new(Line::from(progress_spans)), layout[1]);
+
+    // Rows 2-6: Auto-mode expansion (AUTO-01 through AUTO-05)
+    if state.is_auto && state.active && layout.len() >= 7 {
+        let panel_width = inner.width as usize;
+
+        // Row 2: model + blueprint (AUTO-01, UI-SPEC Row 2)
+        let model_str = truncate_str(&state.model_display, panel_width / 2 - 3);
+        let sep = "  │  ";
+        let bp_max = panel_width.saturating_sub(model_str.chars().count() + sep.len() + 1);
+        let bp_str = truncate_str(&state.blueprint_id, bp_max.min(30));
+        let model_bp_spans = vec![
+            Span::styled(model_str.as_str(), Style::default().fg(Palette::TEXT)),
+            Span::styled(sep, Style::default().fg(Palette::DIM)),
+            Span::styled(bp_str.as_str(), Style::default().fg(Palette::TEXT)),
+        ];
+        f.render_widget(Paragraph::new(Line::from(model_bp_spans)), layout[2]);
+
+        // Row 3: stage + section (AUTO-02, UI-SPEC Row 3)
+        let stage_display = capitalize(&state.current_stage);
+        let section_display = state
+            .current_section
+            .as_deref()
+            .or(state.current_task.as_deref())
+            .unwrap_or("");
+        let section_str = truncate_str(section_display, 30);
+        let stage_section_spans = vec![
+            Span::styled(stage_display.as_str(), Style::default().fg(Palette::ACCENT)),
+            Span::styled(" › ", Style::default().fg(Palette::DIM)),
+            Span::styled(section_str.as_str(), Style::default().fg(Palette::TEXT)),
+        ];
+        f.render_widget(Paragraph::new(Line::from(stage_section_spans)), layout[3]);
+
+        // Row 4: last git commit (AUTO-03, UI-SPEC Row 4)
+        if state.last_commit_hash.is_empty() {
+            // Empty state: em dash (D-06)
+            f.render_widget(
+                Paragraph::new(Span::styled("—", Style::default().fg(Palette::DIM))),
+                layout[4],
+            );
+        } else {
+            let commit_max = panel_width.saturating_sub(9); // 7 hash + 1 space + 1 buffer
+            let commit_msg = truncate_str(&state.last_commit_msg, commit_max);
+            let commit_spans = vec![
+                Span::styled(
+                    state.last_commit_hash.as_str(),
+                    Style::default().fg(Palette::DIM),
+                ),
+                Span::styled(" ", Style::default()),
+                Span::styled(commit_msg.as_str(), Style::default().fg(Palette::TEXT)),
+            ];
+            f.render_widget(Paragraph::new(Line::from(commit_spans)), layout[4]);
+        }
+
+        // Row 5: context % bar (AUTO-04, UI-SPEC Row 5, D-16)
+        let ctx_label = if state.context_pct == 0 {
+            "ctx  ?%".to_string()
+        } else {
+            format!("ctx {:>2}%", state.context_pct)
+        };
+        let bar_width = layout[5].width.saturating_sub(10);
+        let filled = ((state.context_pct as f64 / 100.0) * bar_width as f64) as u16;
+        let empty = bar_width.saturating_sub(filled);
+        let ctx_spans = vec![
+            Span::styled(
+                format!("{:<8}  ", ctx_label),
+                Style::default().fg(Palette::TEXT),
+            ),
+            Span::styled(
+                "█".repeat(filled as usize),
+                Style::default().fg(Palette::ACCENT),
+            ),
+            Span::styled(
+                "░".repeat(empty as usize),
+                Style::default().fg(Palette::DIM),
+            ),
+        ];
+        f.render_widget(Paragraph::new(Line::from(ctx_spans)), layout[5]);
+
+        // Row 6: footer hints (AUTO-05, D-15)
+        let footer_spans = vec![Span::styled(
+            FOOTER_HINTS,
+            Style::default().fg(Palette::DIM),
+        )];
+        f.render_widget(Paragraph::new(Line::from(footer_spans)), layout[6]);
+    }
 }
 
 /// Check if a line is a numbered list item (e.g., "1. Something").
@@ -745,9 +869,18 @@ mod tests {
     fn test_workflow_state_auto_fields() {
         let state = WorkflowState::default();
         assert!(!state.is_auto, "is_auto must default to false");
-        assert!(state.model_display.is_empty(), "model_display must default to empty");
-        assert!(state.last_commit_hash.is_empty(), "last_commit_hash must default to empty");
-        assert!(state.last_commit_msg.is_empty(), "last_commit_msg must default to empty");
+        assert!(
+            state.model_display.is_empty(),
+            "model_display must default to empty"
+        );
+        assert!(
+            state.last_commit_hash.is_empty(),
+            "last_commit_hash must default to empty"
+        );
+        assert!(
+            state.last_commit_msg.is_empty(),
+            "last_commit_msg must default to empty"
+        );
         assert_eq!(state.context_pct, 0, "context_pct must default to 0");
     }
 
@@ -758,7 +891,10 @@ mod tests {
         state.current_stage = "build".to_string();
         state.current_section = Some("section-03".to_string());
 
-        assert_eq!(state.current_stage, "build", "current_stage must be populated from WorkflowUnitStart");
+        assert_eq!(
+            state.current_stage, "build",
+            "current_stage must be populated from WorkflowUnitStart"
+        );
         assert_eq!(
             state.current_section.as_deref(),
             Some("section-03"),
@@ -766,10 +902,15 @@ mod tests {
         );
 
         state.update_pipeline();
-        let build_status = state.stage_pipeline.iter()
+        let build_status = state
+            .stage_pipeline
+            .iter()
             .find(|(name, _)| name == "Build")
             .map(|(_, status)| status);
-        assert!(build_status.is_some(), "Build stage must appear in pipeline after update");
+        assert!(
+            build_status.is_some(),
+            "Build stage must appear in pipeline after update"
+        );
     }
 
     #[test]
@@ -804,7 +945,10 @@ mod tests {
         state_auto.current_stage = "build".to_string();
         state_auto.update_pipeline();
 
-        assert_eq!(state_normal.stage_pipeline.len(), state_auto.stage_pipeline.len());
+        assert_eq!(
+            state_normal.stage_pipeline.len(),
+            state_auto.stage_pipeline.len()
+        );
         for (i, ((name_n, status_n), (name_a, status_a))) in state_normal
             .stage_pipeline
             .iter()
@@ -818,5 +962,13 @@ mod tests {
                 "pipeline status mismatch at index {i}"
             );
         }
+    }
+
+    #[test]
+    fn test_render_footer_hints() {
+        // AUTO-05: verify the footer hints constant is accessible and correct.
+        assert_eq!(FOOTER_HINTS, "esc pause  │  ? help");
+        assert!(FOOTER_HINTS.contains("esc"), "footer must mention esc key");
+        assert!(FOOTER_HINTS.contains("help"), "footer must mention help");
     }
 }
