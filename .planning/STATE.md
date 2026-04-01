@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: TUI Enhancement
-status: executing
-stopped_at: Completed 01-01-PLAN.md
-last_updated: "2026-04-01T18:10:47.978Z"
+status: verifying
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-04-01T18:17:46.442Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-04-01)
 
 Phase: 01 (foundation) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-04-01
 
 Progress: [░░░░░░░░░░] 0%
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 **Recent Trend:** No data yet
 | Phase 01-foundation P02 | 8 | 1 tasks | 1 files |
 | Phase 01-foundation P01 | 5 | 1 tasks | 1 files |
+| Phase 01-foundation P03 | 3 | 3 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 01-foundation]: layout.workflow is Option<Rect> — callers use if let Some(wf_area) pattern for conditional workflow panel rendering
 - [Phase 01-foundation]: Cursor bug fixed: was referencing status bar Rect instead of input Rect; layout.input used directly for correct cursor placement
 - [Phase 01-foundation]: Plan 01: Palette const struct (7 ANSI colors) established as single source of truth; OutputLine.is_final=false for streaming assistant lines
+- [Phase 01-foundation]: All render functions use Palette:: constants exclusively — no inline Color:: literals in render code (D-03 compliance achieved in Plan 03)
+- [Phase 01-foundation]: is_final gate in render_output: streaming=plain, finalized=parse_inline_spans — prevents per-frame flicker (D-08)
+- [Phase 01-foundation]: Cost annotation uses U+21B3 arrow format via format_token_count — replaces old box-drawing style (D-12)
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T18:10:47.976Z
-Stopped at: Completed 01-01-PLAN.md
+Last session: 2026-04-01T18:17:46.440Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
