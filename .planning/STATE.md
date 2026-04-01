@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: TUI Enhancement
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-04-01T22:00:42.336Z"
+stopped_at: "03-04: checkpoint:human-verify — Task 1 complete, awaiting visual verification"
+last_updated: "2026-04-01T22:10:51.970Z"
 last_activity: 2026-04-01
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 9
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-overlays P01 | 6 | 2 tasks | 6 files |
 | Phase 03 P01 | 8 | 2 tasks | 3 files |
 | Phase 03 P02 | 15 | 2 tasks | 2 files |
+| Phase 03 P04 | 20 | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 03]: parse_git_log_line and compute_context_pct are pure module-level functions in widgets.rs — testable without TUI frame context
 - [Phase 03]: tui_event_tx clone created before agent_event_tx moves into spawned agent task — enables drain loop to spawn git fetch tasks that post events back
 - [Phase 03]: WorkflowUnitEnd spawns tokio task for non-blocking git fetch — avoids stalling TUI event loop
+- [Phase 03]: AppLayout::compute third variant uses Constraint::Length(9) for auto mode (7 inner rows + 2 border)
 
 ### Pending Todos
 
@@ -93,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T22:00:42.334Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-04-01T22:10:42.741Z
+Stopped at: 03-04: checkpoint:human-verify — Task 1 complete, awaiting visual verification
 Resume file: None
