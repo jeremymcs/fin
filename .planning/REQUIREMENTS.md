@@ -8,8 +8,8 @@
 
 ### Visual Theme
 
-- [ ] **THEME-01**: User sees a consistent color palette across all TUI widgets (output, status bar, workflow panel, input, splash)
-- [ ] **THEME-02**: Named palette constants are defined in `widgets.rs` so future color changes require editing one place
+- [x] **THEME-01**: User sees a consistent color palette across all TUI widgets (output, status bar, workflow panel, input, splash)
+- [x] **THEME-02**: Named palette constants are defined in `widgets.rs` so future color changes require editing one place
 
 ### Markdown Rendering
 
@@ -81,8 +81,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THEME-01 | Phase 1: Foundation | Pending |
-| THEME-02 | Phase 1: Foundation | Pending |
+| THEME-01 | Phase 1: Foundation | Complete |
+| THEME-02 | Phase 1: Foundation | Complete |
 | MD-01 | Phase 1: Foundation | Pending |
 | MD-02 | Phase 1: Foundation | Pending |
 | MD-03 | Phase 1: Foundation | Pending |

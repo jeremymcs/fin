@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.1
+milestone_name: TUI Enhancement
+status: executing
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-04-01T18:08:12.159Z"
+last_activity: 2026-04-01
+progress:
+  total_phases: 4
+  completed_phases: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 0
+---
+
 # Fin — State
 
 ## Project Reference
@@ -5,20 +21,21 @@
 See: .planning/PROJECT.md (updated 2026-04-01)
 
 **Core value:** A fast, self-contained AI coding agent that runs a full workflow autonomously from a single terminal command.
-**Current focus:** v1.1 TUI Enhancement — Phase 1: Foundation
+**Current focus:** Phase 01 — foundation
 
 ## Current Position
 
-Phase: 1 of 4 (Foundation)
-Plan: — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-04-01 — Roadmap created, Phase 1 ready for planning
+Phase: 01 (foundation) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-04-01
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: —
@@ -33,6 +50,7 @@ Progress: [░░░░░░░░░░] 0%
 | 4. Side Panel | TBD | - | - |
 
 **Recent Trend:** No data yet
+| Phase 01-foundation P02 | 8 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -45,6 +63,9 @@ Progress: [░░░░░░░░░░] 0%
 - Phase 2: ? key guard: only when input_text.is_empty() && !model_picker_active
 - Phase 3: context_pct delivery via new AgentEvent::ContextUsage { pct: u8 } variant — confirm emit point during Phase 3 planning
 - Phase 4: Side panel must be last — most invasive layout change; depends on AppLayout (Phase 1) and context_pct (Phase 3)
+- [Phase 01-foundation]: AppLayout::compute() uses chunks[N] internally — public interface is named fields only; internal use acceptable inside struct impl
+- [Phase 01-foundation]: layout.workflow is Option<Rect> — callers use if let Some(wf_area) pattern for conditional workflow panel rendering
+- [Phase 01-foundation]: Cursor bug fixed: was referencing status bar Rect instead of input Rect; layout.input used directly for correct cursor placement
 
 ### Pending Todos
 
@@ -58,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01
-Stopped at: Roadmap created — all 4 phases defined, 25 requirements mapped (100% coverage)
+Last session: 2026-04-01T18:08:12.157Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None
