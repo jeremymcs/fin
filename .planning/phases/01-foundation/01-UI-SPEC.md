@@ -4,7 +4,8 @@
 ---
 phase: 1
 slug: foundation
-status: draft
+status: approved
+reviewed_at: 2026-04-01T00:00:00Z
 shadcn_initialized: false
 preset: none
 created: 2026-04-01
