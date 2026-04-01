@@ -22,7 +22,7 @@ fn count_bpe(text: &str, provider: &str) -> u64 {
 /// Estimate token count for a single content block.
 fn estimate_content(content: &Content, provider: &str) -> u64 {
     match content {
-        Content::Text { text } | Content::Thinking { text } => count_bpe(text, provider),
+        Content::Text { text } | Content::Thinking { text, .. } => count_bpe(text, provider),
         Content::ToolCall(tc) => {
             let raw = format!("{}{}", tc.name, tc.arguments);
             count_bpe(&raw, provider)
@@ -66,7 +66,7 @@ pub fn estimate_tokens_rough(messages: &[Message]) -> u64 {
                 .iter()
                 .map(|c| match c {
                     Content::Text { text } => text.len() as u64 / 4,
-                    Content::Thinking { text } => text.len() as u64 / 4,
+                    Content::Thinking { text, .. } => text.len() as u64 / 4,
                     Content::ToolCall(tc) => {
                         (tc.name.len() + tc.arguments.to_string().len()) as u64 / 4
                     }

@@ -2228,7 +2228,7 @@ fn replay_history(messages: &[Message], output_lines: &mut Vec<OutputLine>, mode
                                 output_lines.push(OutputLine::assistant(line.to_string()));
                             }
                         }
-                        Content::Thinking { text } => {
+                        Content::Thinking { text, .. } => {
                             for line in text.lines() {
                                 output_lines.push(OutputLine::thinking(line.to_string()));
                             }

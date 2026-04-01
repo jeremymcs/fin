@@ -70,6 +70,12 @@ impl OpenAIProvider {
                         }
                     }
 
+                    // Skip messages that only contained thinking (no text or tool calls).
+                    // OpenAI doesn't understand thinking blocks — sending an empty assistant
+                    // message would cause a 400.
+                    if content_text.is_empty() && tool_calls_json.is_empty() {
+                        continue;
+                    }
                     let mut msg_json = serde_json::json!({ "role": "assistant" });
                     if !content_text.is_empty() {
                         msg_json["content"] = serde_json::json!(content_text);

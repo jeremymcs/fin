@@ -19,6 +19,8 @@ pub enum Content {
     },
     Thinking {
         text: String,
+        #[serde(default)]
+        signature: String,
     },
     ToolCall(ToolCall),
     ToolResult {
@@ -104,12 +106,20 @@ impl Message {
     }
 
     pub fn push_thinking(&mut self, delta: &str) {
-        if let Some(Content::Thinking { text }) = self.content.last_mut() {
+        if let Some(Content::Thinking { text, .. }) = self.content.last_mut() {
             text.push_str(delta);
         } else {
             self.content.push(Content::Thinking {
                 text: delta.to_string(),
+                signature: String::new(),
             });
+        }
+    }
+
+    /// Set the signature on the most recent thinking block (called after signature_delta arrives).
+    pub fn set_last_thinking_signature(&mut self, sig: &str) {
+        if let Some(Content::Thinking { signature, .. }) = self.content.last_mut() {
+            *signature = sig.to_string();
         }
     }
 

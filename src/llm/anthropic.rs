@@ -62,9 +62,10 @@ impl AnthropicProvider {
                                 "type": "text",
                                 "text": text
                             })),
-                            Content::Thinking { text } => Some(serde_json::json!({
+                            Content::Thinking { text, signature } => Some(serde_json::json!({
                                 "type": "thinking",
-                                "thinking": text
+                                "thinking": text,
+                                "signature": signature
                             })),
                             Content::ToolCall(tc) => Some(serde_json::json!({
                                 "type": "tool_use",
@@ -284,6 +285,8 @@ enum ContentDelta {
     TextDelta { text: String },
     #[serde(rename = "thinking_delta")]
     ThinkingDelta { thinking: String },
+    #[serde(rename = "signature_delta")]
+    SignatureDelta { signature: String },
     #[serde(rename = "input_json_delta")]
     InputJsonDelta { partial_json: String },
 }
@@ -392,6 +395,11 @@ pub fn parse_anthropic_sse(
                                         index,
                                         delta: thinking,
                                     });
+                                }
+                                ContentDelta::SignatureDelta { signature } => {
+                                    // Associate signature with the thinking block at this index.
+                                    // Must be sent back verbatim in subsequent API calls.
+                                    message.set_last_thinking_signature(&signature);
                                 }
                                 ContentDelta::InputJsonDelta { partial_json } => {
                                     if let Some(tc) = tool_calls.get_mut(&index) {
