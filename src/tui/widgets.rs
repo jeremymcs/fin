@@ -181,46 +181,56 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
                 ));
             }
             LineKind::Assistant => {
-                // Parse markdown-like formatting in assistant output
-                let text = &line.text;
-                if text.starts_with("# ") || text.starts_with("## ") || text.starts_with("### ") {
-                    // Markdown headers — bold accent
+                if !line.is_final {
+                    // Streaming line — plain text, no markdown parsing (D-08: prevents flicker)
                     spans_lines.push(Line::styled(
-                        text.clone(),
-                        Style::default().fg(Palette::ACCENT).bold(),
-                    ));
-                } else if text.starts_with("```") {
-                    // Code fence markers — dim
-                    spans_lines.push(Line::styled(
-                        text.clone(),
-                        Style::default().fg(Palette::DIM),
-                    ));
-                } else if text.starts_with("- ") || text.starts_with("* ") {
-                    // Unordered bullet lists
-                    let content = text.trim_start_matches("- ").trim_start_matches("* ");
-                    let spans = vec![
-                        Span::styled("  \u{2022} ", Style::default().fg(Palette::ACCENT)),
-                        Span::styled(content.to_string(), Style::default().fg(Palette::TEXT)),
-                    ];
-                    spans_lines.push(Line::from(spans));
-                } else if is_numbered_list(text) {
-                    // Numbered lists (1. 2. etc.) — extract number and content
-                    let dot_pos = text.find(". ").unwrap_or(0);
-                    let num = &text[..dot_pos + 1];
-                    let content = text[dot_pos + 2..].to_string();
-                    let spans = vec![
-                        Span::styled(format!("  {num} "), Style::default().fg(Palette::ACCENT)),
-                        Span::styled(content, Style::default().fg(Palette::TEXT)),
-                    ];
-                    spans_lines.push(Line::from(spans));
-                } else if text.ends_with('?') {
-                    // Questions — make them stand out
-                    spans_lines.push(Line::styled(text.clone(), Style::default().fg(Palette::ACCENT)));
-                } else {
-                    spans_lines.push(Line::styled(
-                        text.clone(),
+                        line.text.clone(),
                         Style::default().fg(Palette::TEXT),
                     ));
+                } else {
+                    // Finalized line — apply markdown rendering (D-10: Assistant only)
+                    let text = &line.text;
+                    if text.starts_with("# ") || text.starts_with("## ") || text.starts_with("### ") {
+                        // Markdown headers — bold accent
+                        spans_lines.push(Line::styled(
+                            text.clone(),
+                            Style::default().fg(Palette::ACCENT).bold(),
+                        ));
+                    } else if text.starts_with("```") {
+                        // Code fence markers — dim
+                        spans_lines.push(Line::styled(
+                            text.clone(),
+                            Style::default().fg(Palette::DIM),
+                        ));
+                    } else if text.starts_with("- ") || text.starts_with("* ") {
+                        // Unordered bullet lists — accent prefix + markdown-parsed content
+                        let content = text.trim_start_matches("- ").trim_start_matches("* ");
+                        let base_style = Style::default().fg(Palette::TEXT);
+                        let mut spans = vec![
+                            Span::styled("  \u{2022} ", Style::default().fg(Palette::ACCENT)),
+                        ];
+                        spans.extend(parse_inline_spans(content, base_style));
+                        spans_lines.push(Line::from(spans));
+                    } else if is_numbered_list(text) {
+                        // Numbered lists — accent prefix + markdown-parsed content
+                        let dot_pos = text.find(". ").unwrap_or(0);
+                        let num = &text[..dot_pos + 1];
+                        let content = text[dot_pos + 2..].to_string();
+                        let base_style = Style::default().fg(Palette::TEXT);
+                        let mut spans = vec![
+                            Span::styled(format!("  {num} "), Style::default().fg(Palette::ACCENT)),
+                        ];
+                        spans.extend(parse_inline_spans(&content, base_style));
+                        spans_lines.push(Line::from(spans));
+                    } else if text.ends_with('?') {
+                        // Questions — accent color with inline markdown
+                        let base_style = Style::default().fg(Palette::ACCENT);
+                        spans_lines.push(Line::from(parse_inline_spans(text, base_style)));
+                    } else {
+                        // Plain text with inline markdown (bold/italic/code)
+                        let base_style = Style::default().fg(Palette::TEXT);
+                        spans_lines.push(Line::from(parse_inline_spans(text, base_style)));
+                    }
                 }
             }
             LineKind::Thinking => {
@@ -298,13 +308,15 @@ pub fn render_status_bar<'a>(
             format!(" |{pos}")
         })
         .unwrap_or_default();
+    let in_fmt = format_token_count(tokens_in);
+    let out_fmt = format_token_count(tokens_out);
     let status = if is_streaming {
         format!(
-            " {model} | streaming...{scroll_indicator}{wf_indicator} | in:{tokens_in} out:{tokens_out} | ${cost:.4}"
+            " {model} | streaming...{scroll_indicator}{wf_indicator} | in:{in_fmt} out:{out_fmt} | ${cost:.4}"
         )
     } else {
         format!(
-            " {model} | ready{scroll_indicator}{wf_indicator} | in:{tokens_in} out:{tokens_out} | ${cost:.4}"
+            " {model} | ready{scroll_indicator}{wf_indicator} | in:{in_fmt} out:{out_fmt} | ${cost:.4}"
         )
     };
 
