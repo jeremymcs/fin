@@ -525,3 +525,81 @@ impl OutputLine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── parse_inline_spans tests ─────────────────────────────────────
+
+    #[test]
+    fn test_parse_inline_spans_bold() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("foo **bar** baz", base);
+        assert_eq!(spans.len(), 3, "expected 3 spans for bold");
+        assert_eq!(spans[1].content.as_ref(), "bar");
+        assert!(
+            spans[1].style.add_modifier.contains(Modifier::BOLD),
+            "span[1] must have BOLD modifier"
+        );
+    }
+
+    #[test]
+    fn test_parse_inline_spans_italic() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("foo *bar* baz", base);
+        assert_eq!(spans.len(), 3, "expected 3 spans for italic");
+        assert_eq!(spans[1].content.as_ref(), "bar");
+        assert!(
+            spans[1].style.add_modifier.contains(Modifier::ITALIC),
+            "span[1] must have ITALIC modifier"
+        );
+    }
+
+    #[test]
+    fn test_parse_inline_spans_code() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("foo `bar` baz", base);
+        assert_eq!(spans.len(), 3, "expected 3 spans for inline code");
+        assert_eq!(spans[1].content.as_ref(), "bar");
+        assert!(
+            spans[1].style.add_modifier.contains(Modifier::REVERSED),
+            "span[1] must have REVERSED modifier"
+        );
+    }
+
+    #[test]
+    fn test_parse_inline_spans_plain() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("no markdown here", base);
+        assert_eq!(spans.len(), 1, "expected 1 span for plain text");
+        assert_eq!(spans[0].content.as_ref(), "no markdown here");
+    }
+
+    // ── format_token_count tests ─────────────────────────────────────
+
+    #[test]
+    fn test_format_token_count_zero() {
+        assert_eq!(format_token_count(0), "0");
+    }
+
+    #[test]
+    fn test_format_token_count_below() {
+        assert_eq!(format_token_count(999), "999");
+    }
+
+    #[test]
+    fn test_format_token_count_exact_thousand() {
+        assert_eq!(format_token_count(1000), "1.0k");
+    }
+
+    #[test]
+    fn test_format_token_count_above() {
+        assert_eq!(format_token_count(1243), "1.2k");
+    }
+
+    #[test]
+    fn test_format_token_count_large() {
+        assert_eq!(format_token_count(15432), "15.4k");
+    }
+}
