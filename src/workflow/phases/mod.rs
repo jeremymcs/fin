@@ -47,6 +47,9 @@ pub struct StageContext {
     pub section_spec_md: Option<String>,
     pub task_spec_md: Option<String>,
     pub summaries: Vec<(String, String)>,
+    /// Codebase map from `fin map` — structural overview of the project.
+    /// Injected into planning stages to reduce exploratory tool calls.
+    pub codebase_map_md: Option<String>,
     /// Workflow-safe agents (fin-* only) from .fin/agents/.
     /// Stages can delegate sub-tasks to these agents.
     pub workflow_agents: crate::agents::AgentRegistry,
@@ -94,6 +97,9 @@ impl StageContext {
             }
         }
 
+        // Load codebase map if it exists (written by `fin map`)
+        let codebase_map_md = std::fs::read_to_string(fin_dir.map_path()).ok();
+
         // Load workflow agents from .fin/agents/ (fin-* only)
         let project_root = fin_dir.root().parent().unwrap_or(fin_dir.root());
         let workflow_agents = crate::agents::AgentRegistry::load_workflow_agents(project_root);
@@ -111,6 +117,7 @@ impl StageContext {
             section_spec_md,
             task_spec_md,
             summaries,
+            codebase_map_md,
             workflow_agents,
             provider_registry: None,
         }
@@ -135,23 +142,28 @@ impl StageContext {
 
         match self.stage {
             Stage::Define => {
-                // Define reads the codebase via tools — minimal injection
+                // Define: inject codebase map so the agent starts oriented.
+                // Without the map, Define burns several API turns on exploratory globs/reads.
+                self.inject_codebase_map(&mut ctx);
             }
             Stage::Explore => {
-                // Explore needs: BRIEF.md + LEDGER.md
+                // Explore needs: codebase map + BRIEF.md + LEDGER.md
+                self.inject_codebase_map(&mut ctx);
                 self.inject_brief(&mut ctx);
                 self.inject_ledger(&mut ctx);
             }
             Stage::Architect => {
                 if self.section_id.is_some() {
-                    // Section planning: VISION + BRIEF + FINDINGS + dependency summaries
+                    // Section planning: codebase map + VISION + BRIEF + FINDINGS + dependency summaries
+                    self.inject_codebase_map(&mut ctx);
                     self.inject_vision(&mut ctx);
                     self.inject_brief(&mut ctx);
                     self.inject_findings(&mut ctx);
                     self.inject_ledger(&mut ctx);
                     self.inject_summaries_full(&mut ctx);
                 } else {
-                    // Blueprint planning: BRIEF + FINDINGS + LEDGER
+                    // Blueprint planning: codebase map + BRIEF + FINDINGS + LEDGER
+                    self.inject_codebase_map(&mut ctx);
                     self.inject_brief(&mut ctx);
                     self.inject_findings(&mut ctx);
                     self.inject_ledger(&mut ctx);
@@ -183,6 +195,23 @@ impl StageContext {
     }
 
     // ── Context injection helpers ─────────────────────────────────
+
+    fn inject_codebase_map(&self, ctx: &mut String) {
+        if let Some(ref map) = self.codebase_map_md {
+            const MAP_LIMIT: usize = 6000;
+            let content = if map.len() > MAP_LIMIT {
+                &map[..MAP_LIMIT]
+            } else {
+                map.as_str()
+            };
+            ctx.push_str("## Codebase Map\n\n");
+            ctx.push_str(content);
+            if map.len() > MAP_LIMIT {
+                ctx.push_str("\n\n*(map truncated — run `fin map` to refresh)*");
+            }
+            ctx.push_str("\n\n");
+        }
+    }
 
     fn inject_ledger(&self, ctx: &mut String) {
         if let Some(ref ledger) = self.ledger_md {
