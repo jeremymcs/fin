@@ -45,7 +45,10 @@ Plans:
   3. An ephemeral toast appears at the top-right of the output area when a workflow stage transitions, when the auto-loop completes or is blocked, or when a tool call produces an error
   4. Toast notifications auto-dismiss after a fixed real-time duration (Instant-based) and do not appear for routine individual tool calls
   5. No toast appears during a heavy streaming sequence where agent events are draining rapidly — timer is immune to event flood rate
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 02-01-PLAN.md — AgentEvent::StageTransition variant + help overlay (? key, any-key dismiss)
+- [ ] 02-02-PLAN.md — Toast notification system (VecDeque queue, Instant TTL, event-driven pushes, unit tests)
 **UI hint**: yes
 
 ### Phase 3: Auto-Run Panel
@@ -77,6 +80,6 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 1. Foundation | v1.1 | 3/3 | Complete   | 2026-04-01 |
-| 2. Overlays | v1.1 | 0/TBD | Not started | - |
+| 2. Overlays | v1.1 | 0/2 | Not started | - |
 | 3. Auto-Run Panel | v1.1 | 0/TBD | Not started | - |
 | 4. Side Panel | v1.1 | 0/TBD | Not started | - |
