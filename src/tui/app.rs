@@ -113,6 +113,9 @@ async fn run_tui_loop(
     // Model picker overlay state
     let mut model_picker_active = false;
     let mut model_picker_index: usize = 0;
+
+    // Help overlay state
+    let mut help_active = false;
     let model_picker_items: Vec<crate::llm::models::ModelConfig> =
         crate::llm::models::default_models();
 
@@ -327,6 +330,59 @@ async fn run_tui_loop(
                         ),
                 );
                 f.render_widget(picker, picker_area);
+            }
+
+            // Help overlay (per D-01: single-column grouped layout, extends model picker pattern)
+            if help_active {
+                let area = f.area();
+                let overlay_width = (area.width.saturating_sub(4)).min(80);
+                let overlay_height = area.height.saturating_sub(4);
+                let overlay_area = ratatui::layout::Rect {
+                    x: (area.width.saturating_sub(overlay_width)) / 2,
+                    y: (area.height.saturating_sub(overlay_height)) / 2,
+                    width: overlay_width,
+                    height: overlay_height,
+                };
+                f.render_widget(ratatui::widgets::Clear, overlay_area);
+
+                let mut lines: Vec<ratatui::text::Line> = vec![
+                    Line::styled(
+                        " Keybindings",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Line::raw(""),
+                    Line::raw("  Ctrl+C      Quit"),
+                    Line::raw("  ?           This help overlay"),
+                    Line::raw("  /model      Switch model (interactive picker)"),
+                    Line::raw("  Esc         Close overlay / cancel"),
+                    Line::raw("  ↑/↓         Scroll output history"),
+                    Line::raw("  Tab         Autocomplete slash commands"),
+                    Line::raw(""),
+                    Line::styled(
+                        " Slash Commands",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Line::raw(""),
+                ];
+                for cmd in SLASH_COMMANDS {
+                    lines.push(Line::raw(format!("  /{cmd}")));
+                }
+                lines.push(Line::raw(""));
+                lines.push(Line::styled(
+                    "  [any key to close]",
+                    Style::default().fg(Color::DarkGray),
+                ));
+
+                let help = ratatui::widgets::Paragraph::new(lines).block(
+                    ratatui::widgets::Block::bordered()
+                        .title(" Keybindings & Commands ")
+                        .border_style(ratatui::style::Style::default().fg(Color::Yellow)),
+                );
+                f.render_widget(help, overlay_area);
             }
 
             // Cursor position — input chunk is [2] normally, [3] with workflow panel
@@ -556,6 +612,12 @@ async fn run_tui_loop(
                             }
                             _ => {}
                         }
+                        continue;
+                    }
+
+                    // Help overlay intercepts all keys when active (per D-03, HELP-02)
+                    if help_active {
+                        help_active = false;
                         continue;
                     }
 
@@ -900,6 +962,12 @@ async fn run_tui_loop(
                                     );
                                 }
                             }
+                        }
+                        // Help overlay — ? key with empty input and no other overlay (per D-04, HELP-03)
+                        (KeyCode::Char('?'), _)
+                            if input_text.is_empty() && !model_picker_active =>
+                        {
+                            help_active = true;
                         }
                         // Text input
                         (KeyCode::Char(c), _) => {
