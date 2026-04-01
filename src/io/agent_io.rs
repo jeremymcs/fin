@@ -77,6 +77,11 @@ pub enum AgentEvent {
     WorkflowError {
         message: String,
     },
+    /// Stage transition — emitted when workflow moves between stages (e.g., Build → Validate).
+    StageTransition {
+        from: String,
+        to: String,
+    },
 }
 
 /// Transport-agnostic interface for agent communication.

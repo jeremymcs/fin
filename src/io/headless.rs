@@ -188,6 +188,11 @@ impl AgentIO for HeadlessIO {
                 e.is_error = Some(true);
                 e
             }
+            AgentEvent::StageTransition { ref from, ref to } => {
+                let mut e = HeadlessEvent::new("workflow_stage_transition");
+                e.text = Some(format!("{from} → {to}"));
+                e
+            }
         };
 
         let json = serde_json::to_string(&he)?;
