@@ -3,6 +3,7 @@
 
 use crossterm::{
     ExecutableCommand,
+    cursor::SetCursorStyle,
     event::{self, Event, KeyCode, KeyModifiers},
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -12,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use super::tui_io::TuiIO;
-use super::widgets::{self, LineKind, OutputLine};
+use super::widgets::{self, LineKind, OutputLine, Palette};
 use crate::agent::agent_loop::run_agent_loop;
 use crate::agent::prompt::{AgentPromptContext, build_system_prompt};
 use crate::agent::state::AgentState;
@@ -26,6 +27,55 @@ use crate::llm::provider::ProviderRegistry;
 use crate::llm::types::*;
 use crate::tools::ToolRegistry;
 use tokio_util::sync::CancellationToken;
+
+/// Named layout regions — replaces fragile chunks[N] indexing.
+/// Per D-05: prerequisite for Phases 3 and 4 layout changes.
+/// Per D-06: handles both workflow-active and workflow-inactive variants.
+struct AppLayout {
+    output:   Rect,
+    workflow: Option<Rect>,
+    status:   Rect,
+    input:    Rect,
+}
+
+impl AppLayout {
+    fn compute(area: Rect, wf_active: bool) -> Self {
+        if wf_active {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(3),    // output
+                    Constraint::Length(4), // workflow panel
+                    Constraint::Length(1), // spacer
+                    Constraint::Length(1), // status bar
+                    Constraint::Length(2), // input
+                ])
+                .split(area);
+            AppLayout {
+                output:   chunks[0],
+                workflow: Some(chunks[1]),
+                status:   chunks[3],
+                input:    chunks[4],
+            }
+        } else {
+            let chunks = Layout::default()
+                .direction(Direction::Vertical)
+                .constraints([
+                    Constraint::Min(3),    // output
+                    Constraint::Length(1), // spacer
+                    Constraint::Length(1), // status bar
+                    Constraint::Length(2), // input
+                ])
+                .split(area);
+            AppLayout {
+                output:   chunks[0],
+                workflow: None,
+                status:   chunks[2],
+                input:    chunks[3],
+            }
+        }
+    }
+}
 
 /// All available slash commands for tab-completion.
 const SLASH_COMMANDS: &[&str] = &[
@@ -71,6 +121,7 @@ pub async fn run_app(args: Cli) -> anyhow::Result<()> {
     // Shift+Home/End (top/bottom).
     enable_raw_mode()?;
     stdout().execute(EnterAlternateScreen)?;
+    stdout().execute(SetCursorStyle::BlinkingBar)?;
     let backend = CrosstermBackend::new(stdout());
     let mut terminal = Terminal::new(backend)?;
 
@@ -78,6 +129,7 @@ pub async fn run_app(args: Cli) -> anyhow::Result<()> {
 
     // Restore terminal
     disable_raw_mode()?;
+    stdout().execute(SetCursorStyle::DefaultUserShape)?;
     stdout().execute(LeaveAlternateScreen)?;
 
     result
@@ -113,6 +165,9 @@ async fn run_tui_loop(
     // Model picker overlay state
     let mut model_picker_active = false;
     let mut model_picker_index: usize = 0;
+
+    // Help overlay state
+    let mut help_active = false;
     let model_picker_items: Vec<crate::llm::models::ModelConfig> =
         crate::llm::models::default_models();
 
@@ -216,71 +271,36 @@ async fn run_tui_loop(
         // Draw UI
         terminal.draw(|f| {
             let wf_active = workflow_state.active;
-            let chunks = if wf_active {
-                Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(3),    // Output
-                        Constraint::Length(4), // Workflow progress panel
-                        Constraint::Length(1), // Status bar
-                        Constraint::Length(2), // Input
-                    ])
-                    .split(f.area())
-            } else {
-                Layout::default()
-                    .direction(Direction::Vertical)
-                    .constraints([
-                        Constraint::Min(3),    // Output
-                        Constraint::Length(1), // Status bar
-                        Constraint::Length(2), // Input
-                    ])
-                    .split(f.area())
-            };
+            let layout = AppLayout::compute(f.area(), wf_active);
 
             // Output area: splash or conversation
             if show_splash {
-                widgets::render_splash(f, chunks[0], &splash_info);
+                widgets::render_splash(f, layout.output, &splash_info);
             } else {
                 let output = widgets::render_output(&output_lines, scroll);
-                f.render_widget(output, chunks[0]);
+                f.render_widget(output, layout.output);
             }
 
-            if wf_active {
-                // Workflow progress panel
-                widgets::render_workflow_panel(f, chunks[1], &workflow_state);
-
-                // Status bar
-                let status = widgets::render_status_bar(
-                    &model_for_display,
-                    total_in,
-                    total_out,
-                    total_cost,
-                    is_streaming,
-                    !scroll_pinned,
-                    Some(&workflow_state),
-                );
-                f.render_widget(status, chunks[2]);
-
-                // Input area
-                let input = widgets::render_input(&input_text, &model_for_display);
-                f.render_widget(input, chunks[3]);
-            } else {
-                // Status bar
-                let status = widgets::render_status_bar(
-                    &model_for_display,
-                    total_in,
-                    total_out,
-                    total_cost,
-                    is_streaming,
-                    !scroll_pinned,
-                    None,
-                );
-                f.render_widget(status, chunks[1]);
-
-                // Input area
-                let input = widgets::render_input(&input_text, &model_for_display);
-                f.render_widget(input, chunks[2]);
+            // Workflow panel (only when active)
+            if let Some(wf_area) = layout.workflow {
+                widgets::render_workflow_panel(f, wf_area, &workflow_state);
             }
+
+            // Status bar (same call regardless of wf_active)
+            let status = widgets::render_status_bar(
+                &model_for_display,
+                total_in,
+                total_out,
+                total_cost,
+                is_streaming,
+                !scroll_pinned,
+                if wf_active { Some(&workflow_state) } else { None },
+            );
+            f.render_widget(status, layout.status);
+
+            // Input area
+            let input = widgets::render_input(&input_text, &model_for_display);
+            f.render_widget(input, layout.input);
 
             // Model picker overlay
             if model_picker_active {
@@ -323,17 +343,69 @@ async fn run_tui_loop(
                     ratatui::widgets::Block::bordered()
                         .title(" Select Model (↑↓ Enter Esc) ")
                         .border_style(
-                            ratatui::style::Style::default().fg(ratatui::style::Color::Cyan),
+                            ratatui::style::Style::default().fg(Palette::ACCENT),
                         ),
                 );
                 f.render_widget(picker, picker_area);
             }
 
-            // Cursor position — input chunk is [2] normally, [3] with workflow panel
-            let input_chunk = if wf_active { chunks[3] } else { chunks[2] };
+            // Help overlay (per D-01: single-column grouped layout, extends model picker pattern)
+            if help_active {
+                let area = f.area();
+                let overlay_width = (area.width.saturating_sub(4)).min(80);
+                let overlay_height = area.height.saturating_sub(4);
+                let overlay_area = ratatui::layout::Rect {
+                    x: (area.width.saturating_sub(overlay_width)) / 2,
+                    y: (area.height.saturating_sub(overlay_height)) / 2,
+                    width: overlay_width,
+                    height: overlay_height,
+                };
+                f.render_widget(ratatui::widgets::Clear, overlay_area);
+
+                let mut lines: Vec<ratatui::text::Line> = vec![
+                    Line::styled(
+                        " Keybindings",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Line::raw(""),
+                    Line::raw("  Ctrl+C      Quit"),
+                    Line::raw("  ?           This help overlay"),
+                    Line::raw("  /model      Switch model (interactive picker)"),
+                    Line::raw("  Esc         Close overlay / cancel"),
+                    Line::raw("  ↑/↓         Scroll output history"),
+                    Line::raw("  Tab         Autocomplete slash commands"),
+                    Line::raw(""),
+                    Line::styled(
+                        " Slash Commands",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Line::raw(""),
+                ];
+                for cmd in SLASH_COMMANDS {
+                    lines.push(Line::raw(format!("  /{cmd}")));
+                }
+                lines.push(Line::raw(""));
+                lines.push(Line::styled(
+                    "  [any key to close]",
+                    Style::default().fg(Color::DarkGray),
+                ));
+
+                let help = ratatui::widgets::Paragraph::new(lines).block(
+                    ratatui::widgets::Block::bordered()
+                        .title(" Keybindings & Commands ")
+                        .border_style(ratatui::style::Style::default().fg(Color::Yellow)),
+                );
+                f.render_widget(help, overlay_area);
+            }
+
+            // Cursor position — use named layout.input field directly
             let prompt_prefix = format!("[{}] > ", model_for_display);
-            let cursor_x = (prompt_prefix.len() + cursor_pos) as u16 % input_chunk.width;
-            let cursor_y = input_chunk.y + 1;
+            let cursor_x = (prompt_prefix.len() + cursor_pos) as u16 % layout.input.width;
+            let cursor_y = layout.input.y + 1;
             f.set_cursor_position(Position::new(cursor_x, cursor_y));
         })?;
 
@@ -360,6 +432,12 @@ async fn run_tui_loop(
                                 output_lines.push(OutputLine::assistant(part.to_string()));
                             }
                         } else {
+                            // Newline boundary — finalize the previous assistant line (D-08)
+                            if let Some(prev) = output_lines.iter_mut().rev()
+                                .find(|l| matches!(l.kind, LineKind::Assistant))
+                            {
+                                prev.is_final = true;
+                            }
                             // Subsequent chunks after \n — always new line
                             output_lines.push(OutputLine::assistant(part.to_string()));
                         }
@@ -409,13 +487,25 @@ async fn run_tui_loop(
                 }
                 AgentEvent::AgentEnd { usage } => {
                     is_streaming = false;
+
+                    // Finalize last assistant line unconditionally (D-08: enables markdown parsing)
+                    if let Some(last) = output_lines.iter_mut().rev()
+                        .find(|l| matches!(l.kind, LineKind::Assistant))
+                    {
+                        last.is_final = true;
+                    }
+
                     total_in += usage.input_tokens;
                     total_out += usage.output_tokens;
                     total_cost += usage.cost.total;
+
+                    // Per-message cost annotation (D-12: dim line after each response)
                     if usage.input_tokens > 0 || usage.output_tokens > 0 {
+                        let in_fmt = widgets::format_token_count(usage.input_tokens);
+                        let out_fmt = widgets::format_token_count(usage.output_tokens);
                         output_lines.push(OutputLine::system(format!(
-                            "└─ {} in / {} out ────",
-                            usage.input_tokens, usage.output_tokens
+                            "  \u{21b3} {} in / {} out  ${:.4}",
+                            in_fmt, out_fmt, usage.cost.total
                         )));
                     }
                     output_lines.push(OutputLine::system(String::new()));
@@ -523,6 +613,9 @@ async fn run_tui_loop(
                         workflow_state.active,
                     );
                 }
+                AgentEvent::StageTransition { .. } => {
+                    // Toast push will be added in Plan 02 — no-op for now
+                }
             }
         }
 
@@ -553,6 +646,12 @@ async fn run_tui_loop(
                             }
                             _ => {}
                         }
+                        continue;
+                    }
+
+                    // Help overlay intercepts all keys when active (per D-03, HELP-02)
+                    if help_active {
+                        help_active = false;
                         continue;
                     }
 
@@ -898,6 +997,12 @@ async fn run_tui_loop(
                                 }
                             }
                         }
+                        // Help overlay — ? key with empty input and no other overlay (per D-04, HELP-03)
+                        (KeyCode::Char('?'), _)
+                            if input_text.is_empty() && !model_picker_active =>
+                        {
+                            help_active = true;
+                        }
                         // Text input
                         (KeyCode::Char(c), _) => {
                             input_text.insert(cursor_pos, c);
@@ -1108,7 +1213,7 @@ async fn run_tui_agent(
                 let step_cancel = cancel.clone();
                 let step_pr = Arc::clone(&provider_registry);
                 let step_cwd = cwd.clone();
-                let step_model = model.clone();
+                let step_model = state.model.clone();
 
                 let step_fut = async {
                     let provider = step_pr.get(&step_model.provider).expect("provider");
@@ -1411,7 +1516,7 @@ async fn run_tui_agent(
                     let resume_cancel = cancel.clone();
                     let resume_pr = Arc::clone(&provider_registry);
                     let resume_cwd = cwd.clone();
-                    let resume_model = model.clone();
+                    let resume_model = state.model.clone();
 
                     let resume_fut = async {
                         let provider = resume_pr
@@ -1469,14 +1574,14 @@ async fn run_tui_agent(
                     fin_dir.create_blueprint(&id).unwrap_or_default();
                     let vision = crate::workflow::markdown::blueprint_vision(&id, bp_args, "");
                     std::fs::write(fin_dir.blueprint_vision(&id), &vision).unwrap_or_default();
-                    let state = crate::workflow::markdown::status_template(
+                    let status_md = crate::workflow::markdown::status_template(
                         &format!("{id} — {bp_args}"),
                         None,
                         None,
                         "define",
                         "Use /define or /auto to start.",
                     );
-                    fin_dir.write_state(&state).unwrap_or_default();
+                    fin_dir.write_state(&status_md).unwrap_or_default();
 
                     let _ = event_tx.send(AgentEvent::TextDelta {
                         text: format!("Created blueprint {id}: {bp_args}\n\n"),
@@ -1529,7 +1634,7 @@ async fn run_tui_agent(
                     let runner = crate::workflow::commands::get_stage_runner(stage);
 
                     let stage_cancel = cancel.clone();
-                    let stage_fut = runner.run(&ctx, &fin_dir, &model, provider, &io, stage_cancel);
+                    let stage_fut = runner.run(&ctx, &fin_dir, &state.model, provider, &io, stage_cancel);
 
                     tokio::pin!(stage_fut);
                     loop {
@@ -1873,8 +1978,8 @@ fn auto_scroll(
     if !pinned {
         return;
     }
-    // status(1) + input(2) + border(1) = 4, workflow panel adds 4 more
-    let chrome = if wf_active { 8 } else { 4 };
+    // spacer(1) + status(1) + input(2) + border(1) = 5, workflow panel adds 4 more
+    let chrome = if wf_active { 9 } else { 5 };
     let visible = terminal_height.saturating_sub(chrome) as usize;
     if lines.len() > visible {
         *scroll = (lines.len() - visible) as u16;

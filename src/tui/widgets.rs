@@ -1,8 +1,24 @@
 // Fin — TUI Widget Helpers
 // Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
 
+use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+
+/// Named color palette — single source of truth for all TUI widget colors.
+/// Per D-03: No inline Color:: literals in render functions after Phase 1.
+/// Per D-04: ANSI named colors only — no Color::Rgb or Color::Indexed.
+pub struct Palette;
+
+impl Palette {
+    pub const ACCENT: Color = Color::Yellow;      // D-01: amber accent
+    pub const TOOL: Color = Color::Cyan;           // D-02: tool-call highlight
+    pub const TEXT: Color = Color::White;          // body text
+    pub const DIM: Color = Color::DarkGray;        // subdued, borders, thinking
+    pub const SUCCESS: Color = Color::Green;       // user text, tool results, done markers
+    pub const ERROR: Color = Color::Red;           // error lines
+    pub const STATUS_BG: Color = Color::DarkGray;  // status bar background
+}
 
 /// Splash screen info for rendering the startup banner.
 pub struct SplashInfo {
@@ -61,14 +77,14 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
     // -- Logo --
     let logo_lines: Vec<Line> = FIN_LOGO
         .iter()
-        .map(|l| Line::styled(*l, Style::default().fg(Color::DarkGray)))
+        .map(|l| Line::styled(*l, Style::default().fg(Palette::DIM)))
         .collect();
     let logo = Paragraph::new(logo_lines);
     f.render_widget(logo, h_layout[0]);
 
     // -- Separator --
     let sep_lines: Vec<Line> = (0..content_area.height)
-        .map(|_| Line::styled("│", Style::default().fg(Color::DarkGray)))
+        .map(|_| Line::styled("│", Style::default().fg(Palette::DIM)))
         .collect();
     let sep = Paragraph::new(sep_lines);
     f.render_widget(sep, h_layout[1]);
@@ -91,26 +107,26 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
 
     // Title + version
     let title_line = Line::from(vec![
-        Span::styled(" Fin", Style::default().fg(Color::White).bold()),
+        Span::styled(" Fin", Style::default().fg(Palette::TEXT).bold()),
         Span::raw("  "),
         Span::styled(
             format!("v{}", info.version),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Palette::DIM),
         ),
     ]);
     f.render_widget(Paragraph::new(title_line), info_layout[0]);
 
     // Model
     let model_line = Line::from(vec![
-        Span::styled(" Model     ", Style::default().fg(Color::Cyan).bold()),
-        Span::styled(&info.model_id, Style::default().fg(Color::White)),
+        Span::styled(" Model     ", Style::default().fg(Palette::ACCENT).bold()),
+        Span::styled(&info.model_id, Style::default().fg(Palette::TEXT)),
     ]);
     f.render_widget(Paragraph::new(model_line), info_layout[2]);
 
     // Provider
     let provider_line = Line::from(vec![
-        Span::styled(" Provider  ", Style::default().fg(Color::Cyan).bold()),
-        Span::styled(&info.provider, Style::default().fg(Color::White)),
+        Span::styled(" Provider  ", Style::default().fg(Palette::ACCENT).bold()),
+        Span::styled(&info.provider, Style::default().fg(Palette::TEXT)),
     ]);
     f.render_widget(Paragraph::new(provider_line), info_layout[3]);
 
@@ -122,8 +138,8 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
         info.directory.clone()
     };
     let dir_line = Line::from(vec![
-        Span::styled(" Directory ", Style::default().fg(Color::Cyan).bold()),
-        Span::styled(dir_display, Style::default().fg(Color::White)),
+        Span::styled(" Directory ", Style::default().fg(Palette::ACCENT).bold()),
+        Span::styled(dir_display, Style::default().fg(Palette::TEXT)),
     ]);
     f.render_widget(Paragraph::new(dir_line), info_layout[4]);
 
@@ -131,15 +147,15 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
     let mut ext_spans: Vec<Span> = vec![Span::raw(" ")];
     for (i, (name, ok)) in info.extensions.iter().enumerate() {
         if i > 0 {
-            ext_spans.push(Span::styled("  ·  ", Style::default().fg(Color::DarkGray)));
+            ext_spans.push(Span::styled("  ·  ", Style::default().fg(Palette::DIM)));
         }
         ext_spans.push(Span::styled(
             name.clone(),
-            Style::default().fg(if *ok { Color::Green } else { Color::Red }),
+            Style::default().fg(if *ok { Palette::SUCCESS } else { Palette::ERROR }),
         ));
         ext_spans.push(Span::styled(
             if *ok { " ✓" } else { " ✗" },
-            Style::default().fg(if *ok { Color::Green } else { Color::Red }),
+            Style::default().fg(if *ok { Palette::SUCCESS } else { Palette::ERROR }),
         ));
     }
     f.render_widget(Paragraph::new(Line::from(ext_spans)), info_layout[6]);
@@ -156,85 +172,95 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
                 if i > 0 {
                     spans_lines.push(Line::styled(
                         "─".repeat(60),
-                        Style::default().fg(Color::DarkGray),
+                        Style::default().fg(Palette::DIM),
                     ));
                 }
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Green).bold(),
+                    Style::default().fg(Palette::SUCCESS).bold(),
                 ));
             }
             LineKind::Assistant => {
-                // Parse markdown-like formatting in assistant output
-                let text = &line.text;
-                if text.starts_with("# ") || text.starts_with("## ") || text.starts_with("### ") {
-                    // Markdown headers — bold cyan
+                if !line.is_final {
+                    // Streaming line — plain text, no markdown parsing (D-08: prevents flicker)
                     spans_lines.push(Line::styled(
-                        text.clone(),
-                        Style::default().fg(Color::Cyan).bold(),
+                        line.text.clone(),
+                        Style::default().fg(Palette::TEXT),
                     ));
-                } else if text.starts_with("```") {
-                    // Code fence markers — dim
-                    spans_lines.push(Line::styled(
-                        text.clone(),
-                        Style::default().fg(Color::DarkGray),
-                    ));
-                } else if text.starts_with("- ") || text.starts_with("* ") {
-                    // Unordered bullet lists
-                    let content = text.trim_start_matches("- ").trim_start_matches("* ");
-                    let spans = vec![
-                        Span::styled("  • ", Style::default().fg(Color::Cyan)),
-                        Span::styled(content.to_string(), Style::default().fg(Color::White)),
-                    ];
-                    spans_lines.push(Line::from(spans));
-                } else if is_numbered_list(text) {
-                    // Numbered lists (1. 2. etc.) — extract number and content
-                    let dot_pos = text.find(". ").unwrap_or(0);
-                    let num = &text[..dot_pos + 1];
-                    let content = text[dot_pos + 2..].to_string();
-                    let spans = vec![
-                        Span::styled(format!("  {num} "), Style::default().fg(Color::Cyan)),
-                        Span::styled(content, Style::default().fg(Color::White)),
-                    ];
-                    spans_lines.push(Line::from(spans));
-                } else if text.ends_with('?') {
-                    // Questions — make them stand out
-                    spans_lines.push(Line::styled(text.clone(), Style::default().fg(Color::Cyan)));
                 } else {
-                    spans_lines.push(Line::styled(
-                        text.clone(),
-                        Style::default().fg(Color::White),
-                    ));
+                    // Finalized line — apply markdown rendering (D-10: Assistant only)
+                    let text = &line.text;
+                    if text.starts_with("# ") || text.starts_with("## ") || text.starts_with("### ") {
+                        // Markdown headers — bold accent
+                        spans_lines.push(Line::styled(
+                            text.clone(),
+                            Style::default().fg(Palette::ACCENT).bold(),
+                        ));
+                    } else if text.starts_with("```") {
+                        // Code fence markers — dim
+                        spans_lines.push(Line::styled(
+                            text.clone(),
+                            Style::default().fg(Palette::DIM),
+                        ));
+                    } else if text.starts_with("- ") || text.starts_with("* ") {
+                        // Unordered bullet lists — accent prefix + markdown-parsed content
+                        let content = text.trim_start_matches("- ").trim_start_matches("* ");
+                        let base_style = Style::default().fg(Palette::TEXT);
+                        let mut spans = vec![
+                            Span::styled("  \u{2022} ", Style::default().fg(Palette::ACCENT)),
+                        ];
+                        spans.extend(parse_inline_spans(content, base_style));
+                        spans_lines.push(Line::from(spans));
+                    } else if is_numbered_list(text) {
+                        // Numbered lists — accent prefix + markdown-parsed content
+                        let dot_pos = text.find(". ").unwrap_or(0);
+                        let num = &text[..dot_pos + 1];
+                        let content = text[dot_pos + 2..].to_string();
+                        let base_style = Style::default().fg(Palette::TEXT);
+                        let mut spans = vec![
+                            Span::styled(format!("  {num} "), Style::default().fg(Palette::ACCENT)),
+                        ];
+                        spans.extend(parse_inline_spans(&content, base_style));
+                        spans_lines.push(Line::from(spans));
+                    } else if text.ends_with('?') {
+                        // Questions — accent color with inline markdown
+                        let base_style = Style::default().fg(Palette::ACCENT);
+                        spans_lines.push(Line::from(parse_inline_spans(text, base_style)));
+                    } else {
+                        // Plain text with inline markdown (bold/italic/code)
+                        let base_style = Style::default().fg(Palette::TEXT);
+                        spans_lines.push(Line::from(parse_inline_spans(text, base_style)));
+                    }
                 }
             }
             LineKind::Thinking => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::DarkGray).italic(),
+                    Style::default().fg(Palette::DIM).italic(),
                 ));
             }
             LineKind::Tool => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Yellow).dim(),
+                    Style::default().fg(Palette::TOOL).dim(),
                 ));
             }
             LineKind::ToolResult => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Green).dim(),
+                    Style::default().fg(Palette::SUCCESS).dim(),
                 ));
             }
             LineKind::Error => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Red).bold(),
+                    Style::default().fg(Palette::ERROR).bold(),
                 ));
             }
             LineKind::System => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(Palette::DIM),
                 ));
             }
         }
@@ -250,11 +276,11 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
 pub fn render_input<'a>(text: &str, model_name: &str) -> Paragraph<'a> {
     let prompt = format!("[{model_name}] > {text}");
     Paragraph::new(prompt)
-        .style(Style::default().fg(Color::Cyan))
+        .style(Style::default().fg(Palette::ACCENT))
         .block(
             Block::default()
                 .borders(Borders::TOP)
-                .border_style(Style::default().fg(Color::DarkGray)),
+                .border_style(Style::default().fg(Palette::DIM)),
         )
 }
 
@@ -282,17 +308,19 @@ pub fn render_status_bar<'a>(
             format!(" |{pos}")
         })
         .unwrap_or_default();
+    let in_fmt = format_token_count(tokens_in);
+    let out_fmt = format_token_count(tokens_out);
     let status = if is_streaming {
         format!(
-            " {model} | streaming...{scroll_indicator}{wf_indicator} | in:{tokens_in} out:{tokens_out} | ${cost:.4}"
+            " {model} | streaming...{scroll_indicator}{wf_indicator} | in:{in_fmt} out:{out_fmt} | ${cost:.4}"
         )
     } else {
         format!(
-            " {model} | ready{scroll_indicator}{wf_indicator} | in:{tokens_in} out:{tokens_out} | ${cost:.4}"
+            " {model} | ready{scroll_indicator}{wf_indicator} | in:{in_fmt} out:{out_fmt} | ${cost:.4}"
         )
     };
 
-    Paragraph::new(status).style(Style::default().fg(Color::White).bg(Color::DarkGray))
+    Paragraph::new(status).style(Style::default().fg(Palette::TEXT).bg(Palette::STATUS_BG))
 }
 
 // ── Workflow progress panel ──────────────────────────────────────────
@@ -376,14 +404,14 @@ impl WorkflowState {
 pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
+        .border_style(Style::default().fg(Palette::DIM))
         .title(Span::styled(
             format!(" {} ", state.blueprint_id),
-            Style::default().fg(Color::White).bold(),
+            Style::default().fg(Palette::TEXT).bold(),
         ))
         .title(Span::styled(
             format!(" {} ", capitalize(&state.current_stage)),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(Palette::ACCENT),
         ));
 
     let inner = block.inner(area);
@@ -405,9 +433,9 @@ pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
             pipeline_spans.push(Span::styled("  ", Style::default()));
         }
         let (icon, color) = match status {
-            StageStatus::Done => ("✓", Color::Green),
-            StageStatus::Active => ("●", Color::Cyan),
-            StageStatus::Pending => ("○", Color::DarkGray),
+            StageStatus::Done => ("✓", Palette::SUCCESS),
+            StageStatus::Active => ("●", Palette::ACCENT),
+            StageStatus::Pending => ("○", Palette::DIM),
         };
         pipeline_spans.push(Span::styled(
             format!("{name} {icon}"),
@@ -433,18 +461,18 @@ pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
     let empty = bar_width.saturating_sub(filled);
 
     let progress_spans = vec![
-        Span::styled(&label, Style::default().fg(Color::White)),
+        Span::styled(&label, Style::default().fg(Palette::TEXT)),
         Span::styled(
             "█".repeat(filled as usize),
-            Style::default().fg(Color::Green),
+            Style::default().fg(Palette::SUCCESS),
         ),
         Span::styled(
             "░".repeat(empty as usize),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Palette::DIM),
         ),
         Span::styled(
             format!("  {}/{} tasks", done, total),
-            Style::default().fg(Color::White),
+            Style::default().fg(Palette::TEXT),
         ),
     ];
     f.render_widget(Paragraph::new(Line::from(progress_spans)), layout[1]);
@@ -473,6 +501,9 @@ fn capitalize(s: &str) -> String {
 pub struct OutputLine {
     pub text: String,
     pub kind: LineKind,
+    /// True when the line is complete and safe for markdown parsing.
+    /// Per D-08: streaming (in-progress) lines render plain to prevent per-frame flicker.
+    pub is_final: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -492,36 +523,189 @@ impl OutputLine {
         Self {
             text: text.into(),
             kind: LineKind::System,
+            is_final: true,
         }
     }
     pub fn user(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             kind: LineKind::User,
+            is_final: true,
         }
     }
+    /// Assistant lines default to is_final=false (finalized by TextDelta newline or AgentEnd).
     pub fn assistant(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             kind: LineKind::Assistant,
+            is_final: false,
         }
     }
     pub fn thinking(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             kind: LineKind::Thinking,
+            is_final: true,
         }
     }
     pub fn tool(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             kind: LineKind::Tool,
+            is_final: true,
         }
     }
     pub fn error(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             kind: LineKind::Error,
+            is_final: true,
         }
+    }
+}
+
+// ── Markdown span helpers ────────────────────────────────────────────
+
+/// Flush accumulated text as a styled span, if non-empty.
+fn flush_span(spans: &mut Vec<Span<'static>>, text: &mut String, style: Style) {
+    if !text.is_empty() {
+        spans.push(Span::styled(std::mem::take(text), style));
+    }
+}
+
+/// Parse inline markdown spans (bold, italic, code) into styled ratatui Spans.
+/// Only call this for finalized assistant lines (is_final == true).
+/// Per D-07: Uses pulldown-cmark 0.12 for parsing.
+/// Per D-09: **bold** -> BOLD, *italic* -> ITALIC, `code` -> REVERSED.
+/// Per D-10: Only LineKind::Assistant lines should be passed here.
+pub fn parse_inline_spans(text: &str, base_style: Style) -> Vec<Span<'static>> {
+    let mut spans = Vec::new();
+    let mut current_style = base_style;
+    let mut current_text = String::new();
+
+    let parser = Parser::new_ext(text, Options::empty());
+    for event in parser {
+        match event {
+            Event::Text(t) => current_text.push_str(&t),
+            Event::Code(t) => {
+                flush_span(&mut spans, &mut current_text, current_style);
+                spans.push(Span::styled(
+                    t.to_string(),
+                    base_style.add_modifier(Modifier::REVERSED),
+                ));
+            }
+            Event::Start(Tag::Strong) => {
+                flush_span(&mut spans, &mut current_text, current_style);
+                current_style = base_style.add_modifier(Modifier::BOLD);
+            }
+            Event::End(TagEnd::Strong) => {
+                flush_span(&mut spans, &mut current_text, current_style);
+                current_style = base_style;
+            }
+            Event::Start(Tag::Emphasis) => {
+                flush_span(&mut spans, &mut current_text, current_style);
+                current_style = base_style.add_modifier(Modifier::ITALIC);
+            }
+            Event::End(TagEnd::Emphasis) => {
+                flush_span(&mut spans, &mut current_text, current_style);
+                current_style = base_style;
+            }
+            _ => {}
+        }
+    }
+    if !current_text.is_empty() {
+        spans.push(Span::styled(current_text, current_style));
+    }
+    if spans.is_empty() {
+        spans.push(Span::styled(text.to_string(), base_style));
+    }
+    spans
+}
+
+/// Format token count for display — abbreviates values >= 1000 (e.g., 1243 -> "1.2k").
+/// Per D-11: status bar and per-message annotation use this formatter.
+pub fn format_token_count(count: u64) -> String {
+    if count >= 1000 {
+        format!("{:.1}k", count as f64 / 1000.0)
+    } else {
+        count.to_string()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // ── parse_inline_spans tests ─────────────────────────────────────
+
+    #[test]
+    fn test_parse_inline_spans_bold() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("foo **bar** baz", base);
+        assert_eq!(spans.len(), 3, "expected 3 spans for bold");
+        assert_eq!(spans[1].content.as_ref(), "bar");
+        assert!(
+            spans[1].style.add_modifier.contains(Modifier::BOLD),
+            "span[1] must have BOLD modifier"
+        );
+    }
+
+    #[test]
+    fn test_parse_inline_spans_italic() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("foo *bar* baz", base);
+        assert_eq!(spans.len(), 3, "expected 3 spans for italic");
+        assert_eq!(spans[1].content.as_ref(), "bar");
+        assert!(
+            spans[1].style.add_modifier.contains(Modifier::ITALIC),
+            "span[1] must have ITALIC modifier"
+        );
+    }
+
+    #[test]
+    fn test_parse_inline_spans_code() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("foo `bar` baz", base);
+        assert_eq!(spans.len(), 3, "expected 3 spans for inline code");
+        assert_eq!(spans[1].content.as_ref(), "bar");
+        assert!(
+            spans[1].style.add_modifier.contains(Modifier::REVERSED),
+            "span[1] must have REVERSED modifier"
+        );
+    }
+
+    #[test]
+    fn test_parse_inline_spans_plain() {
+        let base = Style::default().fg(Color::White);
+        let spans = parse_inline_spans("no markdown here", base);
+        assert_eq!(spans.len(), 1, "expected 1 span for plain text");
+        assert_eq!(spans[0].content.as_ref(), "no markdown here");
+    }
+
+    // ── format_token_count tests ─────────────────────────────────────
+
+    #[test]
+    fn test_format_token_count_zero() {
+        assert_eq!(format_token_count(0), "0");
+    }
+
+    #[test]
+    fn test_format_token_count_below() {
+        assert_eq!(format_token_count(999), "999");
+    }
+
+    #[test]
+    fn test_format_token_count_exact_thousand() {
+        assert_eq!(format_token_count(1000), "1.0k");
+    }
+
+    #[test]
+    fn test_format_token_count_above() {
+        assert_eq!(format_token_count(1243), "1.2k");
+    }
+
+    #[test]
+    fn test_format_token_count_large() {
+        assert_eq!(format_token_count(15432), "15.4k");
     }
 }
