@@ -28,7 +28,11 @@ Four phases deliver the full v1.1 TUI Enhancement milestone in risk-escalating o
   3. The status bar shows formatted token counts and cost (e.g., "1.2k / $0.004") rather than raw integers
   4. All TUI widgets (output, status bar, workflow panel, input, splash) use colors drawn from a single named Palette constant — changing one color constant updates the whole UI
   5. A named AppLayout struct replaces all `chunks[N]` index arithmetic in app.rs, making future layout changes safe
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — Palette struct, OutputLine.is_final, parse_inline_spans, format_token_count + unit tests
+- [ ] 01-02-PLAN.md — AppLayout struct replacing chunks[N] indexing in app.rs
+- [ ] 01-03-PLAN.md — Integration wiring: color swap, markdown rendering, token formatting, cost annotation
 **UI hint**: yes
 
 ### Phase 2: Overlays
@@ -72,7 +76,7 @@ Four phases deliver the full v1.1 TUI Enhancement milestone in risk-escalating o
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Foundation | v1.1 | 0/TBD | Not started | - |
+| 1. Foundation | v1.1 | 0/3 | Planning complete | - |
 | 2. Overlays | v1.1 | 0/TBD | Not started | - |
 | 3. Auto-Run Panel | v1.1 | 0/TBD | Not started | - |
 | 4. Side Panel | v1.1 | 0/TBD | Not started | - |
