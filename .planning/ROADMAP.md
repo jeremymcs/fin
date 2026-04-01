@@ -30,7 +30,7 @@ Four phases deliver the full v1.1 TUI Enhancement milestone in risk-escalating o
   5. A named AppLayout struct replaces all `chunks[N]` index arithmetic in app.rs, making future layout changes safe
 **Plans**: 3 plans
 Plans:
-- [ ] 01-01-PLAN.md — Palette struct, OutputLine.is_final, parse_inline_spans, format_token_count + unit tests
+- [x] 01-01-PLAN.md — Palette struct, OutputLine.is_final, parse_inline_spans, format_token_count + unit tests
 - [x] 01-02-PLAN.md — AppLayout struct replacing chunks[N] indexing in app.rs
 - [ ] 01-03-PLAN.md — Integration wiring: color swap, markdown rendering, token formatting, cost annotation
 **UI hint**: yes
@@ -76,7 +76,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 1. Foundation | v1.1 | 1/3 | In Progress|  |
+| 1. Foundation | v1.1 | 2/3 | In Progress|  |
 | 2. Overlays | v1.1 | 0/TBD | Not started | - |
 | 3. Auto-Run Panel | v1.1 | 0/TBD | Not started | - |
 | 4. Side Panel | v1.1 | 0/TBD | Not started | - |

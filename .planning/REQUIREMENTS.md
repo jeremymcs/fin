@@ -13,15 +13,15 @@
 
 ### Markdown Rendering
 
-- [ ] **MD-01**: User sees **bold** text rendered with bold styling in assistant output (not raw `**asterisks**`)
-- [ ] **MD-02**: User sees *italic* text rendered with italic styling in assistant output (not raw `*asterisks*`)
-- [ ] **MD-03**: User sees `inline code` rendered with distinct styling in assistant output (not raw backticks)
+- [x] **MD-01**: User sees **bold** text rendered with bold styling in assistant output (not raw `**asterisks**`)
+- [x] **MD-02**: User sees *italic* text rendered with italic styling in assistant output (not raw `*asterisks*`)
+- [x] **MD-03**: User sees `inline code` rendered with distinct styling in assistant output (not raw backticks)
 - [ ] **MD-04**: Markdown rendering does not flicker on partial/streaming lines (parser gated behind `is_final` flag)
 
 ### Token Display
 
 - [ ] **TOK-01**: User sees per-message cost annotation as a dim line after each completed assistant response
-- [ ] **TOK-02**: User sees a cleaner token/cost summary in the status bar (formatted counts, not raw numbers)
+- [x] **TOK-02**: User sees a cleaner token/cost summary in the status bar (formatted counts, not raw numbers)
 
 ### Toast Notifications
 
@@ -83,12 +83,12 @@
 |-------------|-------|--------|
 | THEME-01 | Phase 1: Foundation | Complete |
 | THEME-02 | Phase 1: Foundation | Complete |
-| MD-01 | Phase 1: Foundation | Pending |
-| MD-02 | Phase 1: Foundation | Pending |
-| MD-03 | Phase 1: Foundation | Pending |
+| MD-01 | Phase 1: Foundation | Complete |
+| MD-02 | Phase 1: Foundation | Complete |
+| MD-03 | Phase 1: Foundation | Complete |
 | MD-04 | Phase 1: Foundation | Pending |
 | TOK-01 | Phase 1: Foundation | Pending |
-| TOK-02 | Phase 1: Foundation | Pending |
+| TOK-02 | Phase 1: Foundation | Complete |
 | TOAST-01 | Phase 2: Overlays | Pending |
 | TOAST-02 | Phase 2: Overlays | Pending |
 | TOAST-03 | Phase 2: Overlays | Pending |
