@@ -44,6 +44,13 @@ const SLASH_COMMANDS: &[&str] = &[
     "advance",
     "next",
     "auto",
+    "ship",
+    "resume",
+    "pause",
+    "map",
+    "config",
+    "sessions",
+    "worktree",
     "help",
     "quit",
 ];
@@ -698,6 +705,47 @@ async fn run_tui_loop(
                                     if cmd == "next" {
                                         output_lines.push(OutputLine::user(format!("> {prompt}")));
                                         let _ = user_msg_tx.send("__next__".to_string());
+                                        continue;
+                                    }
+
+                                    // /ship — squash-merge section branch to main
+                                    if cmd == "ship" {
+                                        output_lines.push(OutputLine::user(format!("> {prompt}")));
+                                        output_lines.push(OutputLine::system("Shipping...".to_string()));
+                                        auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                        let _ = user_msg_tx.send("__ship__".to_string());
+                                        continue;
+                                    }
+
+                                    // /map — map codebase using TUI agent
+                                    if cmd == "map" {
+                                        output_lines.push(OutputLine::user(format!("> {prompt}")));
+                                        output_lines.push(OutputLine::system("Mapping codebase...".to_string()));
+                                        auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                        let _ = user_msg_tx.send("__map__".to_string());
+                                        continue;
+                                    }
+
+                                    // /resume — resume from handoff (dispatches as build stage)
+                                    if cmd == "resume" {
+                                        output_lines.push(OutputLine::user(format!("> {prompt}")));
+                                        let fin_dir = crate::workflow::state::FinDir::new(&cwd);
+                                        if !fin_dir.exists() {
+                                            output_lines.push(OutputLine::system("No .fin/ directory. Run /init first.".to_string()));
+                                        } else {
+                                            output_lines.push(OutputLine::system("Resuming from handoff...".to_string()));
+                                            auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                            let _ = user_msg_tx.send("__stage:build__".to_string());
+                                        }
+                                        auto_scroll(&output_lines, &mut scroll, terminal.size()?.height, scroll_pinned, workflow_state.active);
+                                        continue;
+                                    }
+
+                                    // /worktree — worktree management
+                                    if cmd == "worktree" {
+                                        let wt_args = rest.split_once(' ').map(|(_, a)| a.trim()).unwrap_or("list");
+                                        output_lines.push(OutputLine::user(format!("> {prompt}")));
+                                        let _ = user_msg_tx.send(format!("__worktree:{wt_args}__"));
                                         continue;
                                     }
 
@@ -1521,6 +1569,118 @@ async fn run_tui_agent(
             continue;
         }
 
+        // Handle /ship — squash-merge section branch to main
+        if prompt == "__ship__" {
+            let (_steer_tx, steer_rx) = mpsc::unbounded_channel::<Message>();
+            let io = TuiIO::new(event_tx.clone(), steer_rx);
+            match crate::workflow::commands::cmd_ship(&cwd).await {
+                Ok(()) => {
+                    let _ = event_tx.send(AgentEvent::TextDelta {
+                        text: "Section shipped successfully.\n".to_string(),
+                    });
+                }
+                Err(e) => {
+                    let _ = event_tx.send(AgentEvent::TextDelta {
+                        text: format!("Ship failed: {e}\n"),
+                    });
+                }
+            }
+            let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+            continue;
+        }
+
+        // Handle /map — map codebase using TuiIO
+        if prompt == "__map__" {
+            let (_steer_tx, steer_rx) = mpsc::unbounded_channel::<Message>();
+            let io = TuiIO::new(event_tx.clone(), steer_rx);
+            let fin_dir = crate::workflow::state::FinDir::new(&cwd);
+            if !fin_dir.exists() {
+                let _ = event_tx.send(AgentEvent::TextDelta {
+                    text: "No .fin/ directory. Run /init first.\n".to_string(),
+                });
+                let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+                continue;
+            }
+            let _ = event_tx.send(AgentEvent::TextDelta {
+                text: format!("Mapping codebase at {} ...\n\n", cwd.display()),
+            });
+            let cancel_map = cancel.clone();
+            let allowed_tools: Vec<String> = ["read", "glob", "grep", "bash", "write"]
+                .iter()
+                .map(|s| s.to_string())
+                .collect();
+            let tool_registry = crate::tools::ToolRegistry::filtered_defaults(&cwd, &allowed_tools);
+            let prompt_content = crate::workflow::prompts::map_prompt(&cwd.display().to_string());
+            let agent_context = crate::agent::prompt::AgentPromptContext {
+                available_agents: None,
+                agent_role: Some(prompt_content),
+            };
+            let system_prompt = crate::agent::prompt::build_system_prompt(
+                &tool_registry.schemas(), &cwd, Some(&agent_context),
+            );
+            let mut map_state = crate::agent::state::AgentState::new(model.clone(), cwd.clone());
+            map_state.tool_registry = tool_registry;
+            map_state.system_prompt = system_prompt;
+            map_state.messages.push(crate::llm::types::Message::new_user(
+                "Map this codebase. Follow the instructions in your system prompt exactly.",
+            ));
+            if let Err(e) = crate::agent::agent_loop::run_agent_loop(&mut map_state, provider, &io, cancel_map).await {
+                let _ = event_tx.send(AgentEvent::TextDelta {
+                    text: format!("Map failed: {e}\n"),
+                });
+            } else {
+                let map_path = fin_dir.map_path();
+                let msg = if map_path.exists() {
+                    format!("\nMap saved to {}. All agents will reference this.\n", map_path.display())
+                } else {
+                    "\nWarning: CODEBASE_MAP.md was not written.\n".to_string()
+                };
+                let _ = event_tx.send(AgentEvent::TextDelta { text: msg });
+            }
+            let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+            continue;
+        }
+
+        // Handle /worktree — worktree management
+        if let Some(wt_args) = prompt.strip_prefix("__worktree:").and_then(|s| s.strip_suffix("__")) {
+            let (_steer_tx, steer_rx) = mpsc::unbounded_channel::<Message>();
+            let io = TuiIO::new(event_tx.clone(), steer_rx);
+            let parts: Vec<&str> = wt_args.splitn(2, ' ').collect();
+            let action_str = parts[0];
+            let action_arg = parts.get(1).copied().unwrap_or("");
+            let action = match action_str {
+                "list" | "" => Some(crate::cli::WorktreeAction::List),
+                "create" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Create { name: action_arg.to_string() }),
+                "merge" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Merge { name: action_arg.to_string() }),
+                "remove" if !action_arg.is_empty() => Some(crate::cli::WorktreeAction::Remove { name: action_arg.to_string() }),
+                "clean" => Some(crate::cli::WorktreeAction::Clean),
+                _ => None,
+            };
+            match action {
+                Some(a) => {
+                    match crate::worktree::handle_worktree(a).await {
+                        Ok(()) => {
+                            let _ = event_tx.send(AgentEvent::TextDelta {
+                                text: format!("Worktree {action_str} complete.\n"),
+                            });
+                        }
+                        Err(e) => {
+                            let _ = event_tx.send(AgentEvent::TextDelta {
+                                text: format!("Worktree error: {e}\n"),
+                            });
+                        }
+                    }
+                }
+                None => {
+                    let _ = event_tx.send(AgentEvent::TextDelta {
+                        text: "Usage: /worktree [list|create <name>|merge <name>|remove <name>|clean]\n".to_string(),
+                    });
+                }
+            }
+            let _ = io.emit(AgentEvent::AgentEnd { usage: crate::llm::types::Usage::default() }).await;
+            continue;
+        }
+
         // Handle stage commands — run via workflow engine in fresh context
         if let Some(stage_name) = prompt
             .strip_prefix("__stage:")
@@ -1822,20 +1982,136 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
             // Handled in the agent task via __blueprint:__ routing
             Ok("Blueprint command dispatched to agent.".into())
         }
+        "pause" => {
+            match crate::workflow::commands::cmd_pause(cwd) {
+                Ok(()) => Ok("Paused. Use /resume to continue from a handoff.".into()),
+                Err(e) => Ok(format!("Pause failed: {e}")),
+            }
+        }
+        "config" => {
+            let sub = _args.trim();
+            if sub.is_empty() || sub == "list-keys" {
+                let auth = crate::config::auth::AuthStore::default();
+                let providers = [
+                    ("anthropic", "ANTHROPIC_API_KEY"),
+                    ("openai", "OPENAI_API_KEY"),
+                    ("google", "GOOGLE_API_KEY"),
+                    ("mistral", "MISTRAL_API_KEY"),
+                    ("brave", ""),
+                    ("tavily", ""),
+                    ("ollama", ""),
+                ];
+                let mut lines = vec!["Configured API keys:".to_string()];
+                let mut found = false;
+                for (name, env_var) in &providers {
+                    if let Some(masked) = auth.get_masked_key(name) {
+                        let source = if !env_var.is_empty() && std::env::var(env_var).is_ok() {
+                            "env"
+                        } else {
+                            "stored"
+                        };
+                        lines.push(format!("  {name:<12} {masked:<20} ({source})"));
+                        found = true;
+                    }
+                }
+                if !found {
+                    lines.push("  No API keys configured.".to_string());
+                    lines.push("  Tip: use `fin config set-key <provider>` from the terminal (input hidden).".to_string());
+                }
+                Ok(lines.join("\n"))
+            } else if let Some(rest) = sub.strip_prefix("set-key ") {
+                let mut parts = rest.trim().splitn(2, ' ');
+                let provider = parts.next().unwrap_or("").trim();
+                let key = parts.next().unwrap_or("").trim();
+                if provider.is_empty() {
+                    return Ok("Usage: /config set-key <provider> <key>".into());
+                }
+                if key.is_empty() {
+                    return Ok(format!(
+                        "Tip: use `fin config set-key {provider}` from the terminal to hide input.\n\
+                         Or: /config set-key {provider} <key>"
+                    ));
+                }
+                let paths = crate::config::paths::FinPaths::resolve()?;
+                let mut auth = crate::config::auth::AuthStore::load(&paths.auth_file)
+                    .unwrap_or_default();
+                auth.set_api_key(provider, key.to_string());
+                auth.save(&paths.auth_file)?;
+                Ok(format!("{provider} key saved."))
+            } else if let Some(rest) = sub.strip_prefix("remove-key ") {
+                let provider = rest.trim();
+                let paths = crate::config::paths::FinPaths::resolve()?;
+                let mut auth = crate::config::auth::AuthStore::load(&paths.auth_file)
+                    .unwrap_or_default();
+                auth.remove_api_key(provider);
+                auth.save(&paths.auth_file)?;
+                Ok(format!("{provider} key removed."))
+            } else {
+                Ok("Usage: /config [list-keys | set-key <provider> <key> | remove-key <provider>]"
+                    .into())
+            }
+        }
+        "sessions" => {
+            let paths = crate::config::paths::FinPaths::resolve()?;
+            let store = crate::db::session::SessionStore::new(&paths.sessions_dir)?;
+            let sessions = store.list()?;
+            if sessions.is_empty() {
+                return Ok("No sessions found.".into());
+            }
+            let mut out = format!(
+                "{:<38}  {:>10}  LAST MODIFIED\n{}\n",
+                "SESSION ID",
+                "SIZE",
+                "-".repeat(70)
+            );
+            for s in &sessions {
+                let elapsed = s.modified.elapsed().unwrap_or_default();
+                let age = if elapsed.as_secs() < 60 {
+                    format!("{}s ago", elapsed.as_secs())
+                } else if elapsed.as_secs() < 3600 {
+                    format!("{}m ago", elapsed.as_secs() / 60)
+                } else if elapsed.as_secs() < 86400 {
+                    format!("{}h ago", elapsed.as_secs() / 3600)
+                } else {
+                    format!("{}d ago", elapsed.as_secs() / 86400)
+                };
+                let size = if s.size < 1024 {
+                    format!("{} B", s.size)
+                } else if s.size < 1_048_576 {
+                    format!("{:.1} KB", s.size as f64 / 1024.0)
+                } else {
+                    format!("{:.1} MB", s.size as f64 / 1_048_576.0)
+                };
+                out.push_str(&format!("{:<38}  {:>10}  {age}\n", s.id, size));
+            }
+            out.push_str(&format!("\n{} session(s)", sessions.len()));
+            Ok(out)
+        }
         "help" => Ok("Commands:\n\
-                 /blueprint [name]  — Create, resume, or manage blueprints\n\
-                 /blueprint PRD <path> — Create blueprint from a PRD document\n\
-                 /blueprint ADR <path> — Create blueprint from ADR documents\n\
-                 /blueprint list    — List all blueprints\n\
-                 /blueprint complete — Mark active blueprint done\n\
-                 /next              — Continue: dispatch workflow or rotate context\n\
-                 /auto              — Run all remaining workflow units\n\
-                 /status            — Show current workflow state\n\
-                 /model             — Switch LLM model (interactive picker)\n\
-                 /clear             — Reset context window\n\n\
+                 /blueprint [name]           — Create, resume, or manage blueprints\n\
+                 /blueprint PRD <path>       — Create blueprint from a PRD document\n\
+                 /blueprint ADR <path>       — Create blueprint from ADR documents\n\
+                 /blueprint list             — List all blueprints\n\
+                 /blueprint complete         — Mark active blueprint done\n\
+                 /next                       — Continue: dispatch workflow or rotate context\n\
+                 /auto                       — Run all remaining workflow units\n\
+                 /ship                       — Squash-merge section branch to main\n\
+                 /resume                     — Resume from handoff\n\
+                 /pause                      — Show pause state info\n\
+                 /map                        — Map codebase (.fin/CODEBASE_MAP.md)\n\
+                 /status                     — Show current workflow state\n\
+                 /model                      — Switch LLM model (interactive picker)\n\
+                 /clear                      — Reset context window\n\n\
                  Stages (require active blueprint):\n\
                  /define /explore /architect /build /validate\n\
                  /seal-section /advance\n\n\
+                 /config [list-keys]                      — Show configured API keys\n\
+                 /config set-key <provider> <key>         — Save an API key\n\
+                 /config remove-key <provider>            — Remove an API key\n\
+                 /sessions                                — List recent sessions\n\
+                 /worktree [list]                         — List worktrees\n\
+                 /worktree create|merge|remove <name>     — Manage worktrees\n\
+                 /worktree clean                          — Prune stale worktrees\n\n\
                  /init  — Initialize .fin/ directory\n\
                  /help  — Show this help\n\
                  /quit  — Exit"
@@ -1845,9 +2121,9 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
             Ok("Exiting...".into())
         }
         "define" | "explore" | "architect" | "build" | "validate" | "seal-section" | "advance"
-        | "next" | "auto" => {
+        | "next" | "auto" | "ship" | "map" | "resume" | "worktree" => {
             // Handled in the main TUI loop before reaching here
-            Ok(format!("Stage '{cmd}' dispatched to agent."))
+            Ok(format!("/{cmd} dispatched."))
         }
         _ => Ok(format!(
             "Unknown command: /{cmd}. Type /help for available commands."
