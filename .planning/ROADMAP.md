@@ -61,7 +61,12 @@ Plans:
   3. During auto-loop execution the workflow panel shows the short git hash and summary of the last commit
   4. During auto-loop execution the workflow panel shows context window usage as a percentage (e.g., "ctx 34%")
   5. The workflow panel footer shows `esc pause | ? help` keybind hints during auto-loop; the existing stage pipeline (✓/●/○) and progress bar remain visible and unchanged
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 03-01-PLAN.md — Data model: AgentEvent variants, WorkflowState fields, Wave 0 test stubs
+- [ ] 03-02-PLAN.md — Git fetch pipeline: WorkflowGit::last_commit(), async trigger, drain loop wiring
+- [ ] 03-03-PLAN.md — Context usage emission: ContextUsage after AgentEnd, AutoModeStart/End at spawn sites
+- [ ] 03-04-PLAN.md — Render + layout: 5 new panel rows, AppLayout third variant, visual verification
 **UI hint**: yes
 
 ### Phase 4: Side Panel
@@ -81,5 +86,5 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 1. Foundation | v1.1 | 3/3 | Complete   | 2026-04-01 |
 | 2. Overlays | v1.1 | 1/2 | In Progress|  |
-| 3. Auto-Run Panel | v1.1 | 0/TBD | Not started | - |
+| 3. Auto-Run Panel | v1.1 | 0/4 | Not started | - |
 | 4. Side Panel | v1.1 | 0/TBD | Not started | - |
