@@ -172,6 +172,14 @@ impl WorkflowGit {
 
     // ── Utility ─────────────────────────────────────────────────────────
 
+    /// Fetch the latest commit: `git log -1 --format='%h %s'`.
+    /// Returns (short_hash, subject). Uses parse_git_log_line from widgets.
+    pub async fn last_commit(&self) -> anyhow::Result<(String, String)> {
+        let output = self.run_git(&["log", "-1", "--format=%h %s"]).await
+            .context("failed to read last commit")?;
+        Ok(crate::tui::widgets::parse_git_log_line(&output))
+    }
+
     /// Returns true if the working tree has uncommitted changes.
     pub async fn has_changes(&self) -> anyhow::Result<bool> {
         let output = self
@@ -338,5 +346,18 @@ mod tests {
         let (hash4, msg4) = parse_git_log_line("");
         assert!(hash4.is_empty());
         assert!(msg4.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_last_commit_returns_hash_and_msg() {
+        let (dir, git) = setup_temp_repo().await;
+        // Create a file and commit it
+        fs::write(dir.path().join("hello.txt"), "world").unwrap();
+        git.run_git(&["add", "."]).await.unwrap();
+        git.run_git(&["commit", "-m", "feat: initial commit"]).await.unwrap();
+
+        let (hash, msg) = git.last_commit().await.unwrap();
+        assert_eq!(hash.len(), 7, "short hash should be 7 chars, got: {hash}");
+        assert_eq!(msg, "feat: initial commit");
     }
 }

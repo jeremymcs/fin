@@ -258,6 +258,10 @@ async fn run_tui_loop(
         }
     }
 
+    // Clone the sender before moving it into the agent task so the drain loop
+    // can spawn async tasks (e.g. git fetch) that post events back.
+    let tui_event_tx = agent_event_tx.clone();
+
     // Spawn persistent agent task that processes prompts from the channel
     let agent_model = model.clone();
     let agent_cwd = cwd.clone();
@@ -581,6 +585,7 @@ async fn run_tui_loop(
                 }
                 AgentEvent::ModelChanged { display_name } => {
                     model_for_display = display_name.clone();
+                    workflow_state.model_display = display_name.clone();  // D-14: keep panel in sync
                     output_lines.push(OutputLine::system(format!(
                         "Model switched to {display_name}"
                     )));
@@ -616,7 +621,18 @@ async fn run_tui_loop(
                     workflow_state.current_task = task_id;
                     workflow_state.update_pipeline();
                 }
-                AgentEvent::WorkflowUnitEnd { .. } => {}
+                AgentEvent::WorkflowUnitEnd { .. } => {
+                    // Async git fetch — non-blocking (D-05).
+                    // Spawn a task that calls last_commit() and sends result via event channel.
+                    let git_cwd = cwd.clone();
+                    let git_tx = tui_event_tx.clone();
+                    tokio::spawn(async move {
+                        let git = crate::workflow::git::WorkflowGit::new(&git_cwd);
+                        if let Ok((hash, msg)) = git.last_commit().await {
+                            let _ = git_tx.send(AgentEvent::GitCommitUpdate { hash, msg });
+                        }
+                    });
+                }
                 AgentEvent::WorkflowProgress {
                     sections_total,
                     sections_done,
@@ -682,19 +698,19 @@ async fn run_tui_loop(
                 AgentEvent::StageTransition { from, to } => {
                     push_toast(&mut toasts, format!("{from} → {to}"), ToastKind::Info);
                 }
-                // New Phase 3 variants — handled in detail by Wave 2/3 plans
+                AgentEvent::GitCommitUpdate { hash, msg } => {
+                    workflow_state.last_commit_hash = hash;
+                    workflow_state.last_commit_msg = msg;
+                }
                 AgentEvent::AutoModeStart => {
                     workflow_state.is_auto = true;
+                    workflow_state.model_display = model_for_display.clone();
                 }
                 AgentEvent::AutoModeEnd => {
                     workflow_state.is_auto = false;
                 }
                 AgentEvent::ContextUsage { pct } => {
                     workflow_state.context_pct = pct;
-                }
-                AgentEvent::GitCommitUpdate { hash, msg } => {
-                    workflow_state.last_commit_hash = hash;
-                    workflow_state.last_commit_msg = msg;
                 }
             }
         }

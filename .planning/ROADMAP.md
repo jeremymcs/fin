@@ -64,8 +64,8 @@ Plans:
 **Plans**: 4 plans
 Plans:
 - [x] 03-01-PLAN.md — Data model: AgentEvent variants, WorkflowState fields, Wave 0 test stubs
-- [ ] 03-02-PLAN.md — Git fetch pipeline: WorkflowGit::last_commit(), async trigger, drain loop wiring
-- [x] 03-03-PLAN.md — Context usage emission: ContextUsage after AgentEnd, AutoModeStart/End at spawn sites
+- [x] 03-02-PLAN.md — Git fetch pipeline: WorkflowGit::last_commit(), async trigger, drain loop wiring
+- [ ] 03-03-PLAN.md — Context usage emission: ContextUsage after AgentEnd, AutoModeStart/End at spawn sites
 - [ ] 03-04-PLAN.md — Render + layout: 5 new panel rows, AppLayout third variant, visual verification
 **UI hint**: yes
 
