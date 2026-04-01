@@ -52,10 +52,12 @@ A fast, self-contained AI coding agent that runs a full workflow (Define → Bui
 
 - [ ] Auto-run panel shows blueprint id/name, current stage/action, last git commit, context memory %, keybind hints
 - [ ] Toast notifications for tool events, errors, and stage transitions (ephemeral, auto-dismiss)
-- [ ] Assistant output renders **bold** and *italic* markdown inline (not raw asterisks)
+- [ ] Auto-run panel shows blueprint id/name, current stage/action, last git commit, context memory %, keybind hints
+- [ ] Toast notifications for tool events, errors, and stage transitions (ephemeral, auto-dismiss)
+- ✓ Assistant output renders **bold** and *italic* and `inline code` markdown (not raw asterisks) — Validated in Phase 1: Foundation
 - [ ] `?` key shows keybindings and slash command help overlay
-- [ ] Token/cost display improvements (per-message tracking or cleaner session summary)
-- [ ] Visual theme consistency pass (color palette, border styles)
+- ✓ Token/cost display improvements (per-message cost annotation + abbreviated status bar counts) — Validated in Phase 1: Foundation
+- ✓ Visual theme consistency pass (Palette constants, amber accent, no inline Color:: in render functions) — Validated in Phase 1: Foundation
 - [ ] Toggle-able side info panel (Ctrl+P: model, tokens, workflow state)
 
 ### Out of Scope
@@ -87,7 +89,7 @@ A fast, self-contained AI coding agent that runs a full workflow (Define → Bui
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Keep existing stage pipeline panel, extend for auto mode | User confirmed they like the current design | — Pending |
-| Implement bold/italic with span parsing (not full markdown crate) | Binary size constraint; only two patterns needed | — Pending |
+| Implement bold/italic/code with span parsing via pulldown-cmark 0.12 | Binary size constraint; already in Cargo.toml | ✓ Delivered Phase 1 |
 | Toast overlays render on top of output area | Avoids layout shift in the main panels | — Pending |
 | Side panel is toggle-off by default | Preserves full output width for normal use | — Pending |
 
@@ -109,4 +111,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-01 — Milestone v1.1 started*
+*Last updated: 2026-04-01 — Phase 1: Foundation complete*
