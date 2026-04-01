@@ -28,9 +28,12 @@ impl AnthropicProvider {
     }
 
     pub fn convert_messages(messages: &[Message]) -> Vec<serde_json::Value> {
-        messages
-            .iter()
-            .map(|msg| match msg.role {
+        let mut out: Vec<serde_json::Value> = Vec::new();
+        let mut i = 0;
+
+        while i < messages.len() {
+            let msg = &messages[i];
+            match msg.role {
                 Role::User => {
                     let content: Vec<serde_json::Value> = msg
                         .content
@@ -51,7 +54,8 @@ impl AnthropicProvider {
                             _ => None,
                         })
                         .collect();
-                    serde_json::json!({ "role": "user", "content": content })
+                    out.push(serde_json::json!({ "role": "user", "content": content }));
+                    i += 1;
                 }
                 Role::Assistant => {
                     let content: Vec<serde_json::Value> = msg
@@ -76,30 +80,39 @@ impl AnthropicProvider {
                             _ => None,
                         })
                         .collect();
-                    serde_json::json!({ "role": "assistant", "content": content })
+                    out.push(serde_json::json!({ "role": "assistant", "content": content }));
+                    i += 1;
                 }
                 Role::ToolResult => {
-                    let text = msg
-                        .content
-                        .iter()
-                        .find_map(|c| match c {
-                            Content::Text { text } => Some(text.clone()),
-                            _ => None,
-                        })
-                        .unwrap_or_default();
-
-                    serde_json::json!({
-                        "role": "user",
-                        "content": [{
+                    // Batch ALL consecutive ToolResult messages into a single user message.
+                    // The Anthropic API requires that all tool results from one assistant turn
+                    // appear in a single user message — multiple consecutive user messages are
+                    // invalid and return 400.
+                    let mut tool_results: Vec<serde_json::Value> = Vec::new();
+                    while i < messages.len() && messages[i].role == Role::ToolResult {
+                        let tr = &messages[i];
+                        let text = tr
+                            .content
+                            .iter()
+                            .find_map(|c| match c {
+                                Content::Text { text } => Some(text.clone()),
+                                _ => None,
+                            })
+                            .unwrap_or_default();
+                        tool_results.push(serde_json::json!({
                             "type": "tool_result",
-                            "tool_use_id": msg.tool_call_id.as_deref().unwrap_or(""),
+                            "tool_use_id": tr.tool_call_id.as_deref().unwrap_or(""),
                             "content": text,
-                            "is_error": msg.is_error.unwrap_or(false)
-                        }]
-                    })
+                            "is_error": tr.is_error.unwrap_or(false)
+                        }));
+                        i += 1;
+                    }
+                    out.push(serde_json::json!({ "role": "user", "content": tool_results }));
                 }
-            })
-            .collect()
+            }
+        }
+
+        out
     }
 
     pub fn convert_tools(tools: &[ToolSchema]) -> Vec<serde_json::Value> {
