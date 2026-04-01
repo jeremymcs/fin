@@ -79,14 +79,30 @@
 
 ## Traceability
 
-*Filled during roadmap creation.*
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| THEME-01, THEME-02 | — | Pending |
-| MD-01–MD-04 | — | Pending |
-| TOK-01, TOK-02 | — | Pending |
-| TOAST-01–TOAST-05 | — | Pending |
-| HELP-01–HELP-03 | — | Pending |
-| AUTO-01–AUTO-06 | — | Pending |
-| SIDE-01–SIDE-03 | — | Pending |
+| THEME-01 | Phase 1: Foundation | Pending |
+| THEME-02 | Phase 1: Foundation | Pending |
+| MD-01 | Phase 1: Foundation | Pending |
+| MD-02 | Phase 1: Foundation | Pending |
+| MD-03 | Phase 1: Foundation | Pending |
+| MD-04 | Phase 1: Foundation | Pending |
+| TOK-01 | Phase 1: Foundation | Pending |
+| TOK-02 | Phase 1: Foundation | Pending |
+| TOAST-01 | Phase 2: Overlays | Pending |
+| TOAST-02 | Phase 2: Overlays | Pending |
+| TOAST-03 | Phase 2: Overlays | Pending |
+| TOAST-04 | Phase 2: Overlays | Pending |
+| TOAST-05 | Phase 2: Overlays | Pending |
+| HELP-01 | Phase 2: Overlays | Pending |
+| HELP-02 | Phase 2: Overlays | Pending |
+| HELP-03 | Phase 2: Overlays | Pending |
+| AUTO-01 | Phase 3: Auto-Run Panel | Pending |
+| AUTO-02 | Phase 3: Auto-Run Panel | Pending |
+| AUTO-03 | Phase 3: Auto-Run Panel | Pending |
+| AUTO-04 | Phase 3: Auto-Run Panel | Pending |
+| AUTO-05 | Phase 3: Auto-Run Panel | Pending |
+| AUTO-06 | Phase 3: Auto-Run Panel | Pending |
+| SIDE-01 | Phase 4: Side Panel | Pending |
+| SIDE-02 | Phase 4: Side Panel | Pending |
+| SIDE-03 | Phase 4: Side Panel | Pending |
