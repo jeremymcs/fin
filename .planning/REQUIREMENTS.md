@@ -16,11 +16,11 @@
 - [x] **MD-01**: User sees **bold** text rendered with bold styling in assistant output (not raw `**asterisks**`)
 - [x] **MD-02**: User sees *italic* text rendered with italic styling in assistant output (not raw `*asterisks*`)
 - [x] **MD-03**: User sees `inline code` rendered with distinct styling in assistant output (not raw backticks)
-- [ ] **MD-04**: Markdown rendering does not flicker on partial/streaming lines (parser gated behind `is_final` flag)
+- [x] **MD-04**: Markdown rendering does not flicker on partial/streaming lines (parser gated behind `is_final` flag)
 
 ### Token Display
 
-- [ ] **TOK-01**: User sees per-message cost annotation as a dim line after each completed assistant response
+- [x] **TOK-01**: User sees per-message cost annotation as a dim line after each completed assistant response
 - [x] **TOK-02**: User sees a cleaner token/cost summary in the status bar (formatted counts, not raw numbers)
 
 ### Toast Notifications
@@ -33,9 +33,9 @@
 
 ### Help Overlay
 
-- [ ] **HELP-01**: User can press `?` to open a full-screen keybindings and slash command reference
-- [ ] **HELP-02**: Help overlay is dismissed by pressing any key
-- [ ] **HELP-03**: `?` key is only intercepted when the input field is empty (does not block typing `?` in prompts)
+- [x] **HELP-01**: User can press `?` to open a full-screen keybindings and slash command reference
+- [x] **HELP-02**: Help overlay is dismissed by pressing any key
+- [x] **HELP-03**: `?` key is only intercepted when the input field is empty (does not block typing `?` in prompts)
 
 ### Auto-Run Panel
 
@@ -86,17 +86,17 @@
 | MD-01 | Phase 1: Foundation | Complete |
 | MD-02 | Phase 1: Foundation | Complete |
 | MD-03 | Phase 1: Foundation | Complete |
-| MD-04 | Phase 1: Foundation | Pending |
-| TOK-01 | Phase 1: Foundation | Pending |
+| MD-04 | Phase 1: Foundation | Complete |
+| TOK-01 | Phase 1: Foundation | Complete |
 | TOK-02 | Phase 1: Foundation | Complete |
 | TOAST-01 | Phase 2: Overlays | Pending |
 | TOAST-02 | Phase 2: Overlays | Pending |
 | TOAST-03 | Phase 2: Overlays | Pending |
 | TOAST-04 | Phase 2: Overlays | Pending |
 | TOAST-05 | Phase 2: Overlays | Pending |
-| HELP-01 | Phase 2: Overlays | Pending |
-| HELP-02 | Phase 2: Overlays | Pending |
-| HELP-03 | Phase 2: Overlays | Pending |
+| HELP-01 | Phase 2: Overlays | Complete |
+| HELP-02 | Phase 2: Overlays | Complete |
+| HELP-03 | Phase 2: Overlays | Complete |
 | AUTO-01 | Phase 3: Auto-Run Panel | Pending |
 | AUTO-02 | Phase 3: Auto-Run Panel | Pending |
 | AUTO-03 | Phase 3: Auto-Run Panel | Pending |
