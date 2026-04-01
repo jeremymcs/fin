@@ -65,6 +65,7 @@ pub async fn run_loop(
 ) -> LoopResult {
     let fin_dir = FinDir::new(cwd);
     let mut units_run: u32 = 0;
+    let mut prev_stage: Option<String> = None;
 
     for _iteration in 0..MAX_ITERATIONS {
         if cancel.is_cancelled() {
@@ -114,6 +115,20 @@ pub async fn run_loop(
                     unit.stage,
                 );
                 tracing::info!("Dispatching unit: {unit_desc}");
+
+                // Emit stage transition if stage changed (per D-11)
+                let current_stage_label = unit.stage.label().to_string();
+                if let Some(ref from) = prev_stage {
+                    if *from != current_stage_label {
+                        let _ = io
+                            .emit(AgentEvent::StageTransition {
+                                from: from.clone(),
+                                to: current_stage_label.clone(),
+                            })
+                            .await;
+                    }
+                }
+                prev_stage = Some(current_stage_label);
 
                 // Emit workflow unit start
                 let _ = io
