@@ -47,23 +47,37 @@ pub fn list_models(search: Option<&str>) {
         return;
     }
 
+    let aliases = models::model_aliases();
+
     println!(
-        "{:<35} {:<12} {:<10} {:<12}",
-        "Model", "Provider", "Context", "$/1M in/out"
+        "{:<35} {:<12} {:<10} {:<14} {}",
+        "Model", "Provider", "Context", "$/1M in/out", "Alias"
     );
-    println!("{}", "-".repeat(75));
+    println!("{}", "-".repeat(85));
     for m in filtered {
         let cost = if m.cost.input_per_million == 0.0 && m.cost.output_per_million == 0.0 {
             "free (local)".to_string()
         } else {
             format!("${:.2}/${:.2}", m.cost.input_per_million, m.cost.output_per_million)
         };
+        // Collect all aliases that point to this model
+        let model_aliases: Vec<&str> = aliases
+            .iter()
+            .filter(|(_, full_id)| *full_id == m.id)
+            .map(|(alias, _)| *alias)
+            .collect();
+        let alias_str = if model_aliases.is_empty() {
+            String::new()
+        } else {
+            model_aliases.join(", ")
+        };
         println!(
-            "{:<35} {:<12} {:<10} {}",
+            "{:<35} {:<12} {:<10} {:<14} {}",
             m.display_name,
             m.provider,
             m.context_window,
             cost,
+            alias_str,
         );
     }
 }

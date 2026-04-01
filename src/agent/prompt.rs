@@ -173,6 +173,28 @@ fn load_context_files(cwd: &Path) -> Option<String> {
         }
     }
 
+    // Load codebase map if present (written by `fin map`)
+    let map_path = cwd.join(".fin/CODEBASE_MAP.md");
+    if map_path.exists() {
+        if let Ok(map_content) = std::fs::read_to_string(&map_path) {
+            // Staleness check: compare git-head in map vs current HEAD
+            let stale_warning = check_map_staleness(cwd, &map_content);
+
+            let capped = if map_content.len() > 5000 {
+                format!("{}...\n(map truncated — run `fin map` to refresh)", &map_content[..5000])
+            } else {
+                map_content
+            };
+
+            context.push_str("## Codebase Map (.fin/CODEBASE_MAP.md)\n\n");
+            if let Some(warning) = stale_warning {
+                context.push_str(&format!("**{warning}**\n\n"));
+            }
+            context.push_str(&capped);
+            context.push_str("\n\n");
+        }
+    }
+
     // Project type detection — gives the agent context about the stack
     if let Some(project_info) = detect_project_type(cwd) {
         context.push_str(&format!("## Project\n\n{project_info}\n\n"));
@@ -351,6 +373,46 @@ mod tests {
         let ctx = load_context_files(tmp.path()).unwrap();
         assert!(ctx.contains("CONTRIBUTING.md"));
         assert!(ctx.contains("Rules here"));
+    }
+}
+
+/// Check if CODEBASE_MAP.md is stale by comparing the embedded git-head with current HEAD.
+/// Returns a warning string if stale, None if current or unable to determine.
+fn check_map_staleness(cwd: &Path, map_content: &str) -> Option<String> {
+    // Extract git-head from map comment: <!-- git-head: abc1234 -->
+    let map_head = map_content
+        .lines()
+        .find(|l| l.contains("git-head:"))?
+        .split("git-head:")
+        .nth(1)?
+        .trim()
+        .trim_end_matches("-->")
+        .trim()
+        .to_string();
+
+    if map_head.is_empty() {
+        return None;
+    }
+
+    // Get current HEAD
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .current_dir(cwd)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let current_head = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+    if current_head != map_head {
+        Some(format!(
+            "CODEBASE_MAP may be stale (mapped at {map_head}, current HEAD is {current_head}). Run `fin map` to refresh."
+        ))
+    } else {
+        None
     }
 }
 

@@ -238,7 +238,28 @@ pub fn default_models() -> Vec<ModelConfig> {
     ]
 }
 
-/// Resolve a model by ID, with fuzzy matching.
+/// Short aliases for common models.
+/// Checked before exact/partial matching in `resolve_model()`.
+pub fn model_aliases() -> &'static [(&'static str, &'static str)] {
+    &[
+        // Anthropic
+        ("sonnet",   "claude-sonnet-4-6"),
+        ("opus",     "claude-opus-4-6"),
+        ("haiku",    "claude-haiku-4-5-20251001"),
+        // OpenAI
+        ("gpt",      "gpt-4.1"),
+        ("gpt4",     "gpt-4.1"),
+        ("o3",       "o3"),
+        ("codex",    "o3"),
+        // Google
+        ("pro",      "gemini-2.5-pro"),
+        ("gemini",   "gemini-2.5-pro"),
+        ("flash",    "gemini-2.5-flash"),
+    ]
+}
+
+/// Resolve a model by ID, alias, or fuzzy match.
+/// Resolution order: alias → exact → partial.
 /// Supports `ollama/model-name` syntax for local models.
 pub fn resolve_model(id: &str) -> Option<ModelConfig> {
     // Handle explicit ollama/ prefix — create a config directly
@@ -263,6 +284,13 @@ pub fn resolve_model(id: &str) -> Option<ModelConfig> {
         });
     }
 
+    let lower = id.to_lowercase();
+
+    // Alias lookup (case-insensitive) — direct lookup to avoid recursion
+    if let Some(&(_, full_id)) = model_aliases().iter().find(|(alias, _)| *alias == lower.as_str()) {
+        return default_models().into_iter().find(|m| m.id == full_id);
+    }
+
     let models = default_models();
 
     // Exact match
@@ -270,10 +298,32 @@ pub fn resolve_model(id: &str) -> Option<ModelConfig> {
         return Some(m.clone());
     }
 
-    // Partial match
-    let lower = id.to_lowercase();
-    models.into_iter().find(|m| {
-        m.id.to_lowercase().contains(&lower) || m.display_name.to_lowercase().contains(&lower)
+    // Partial match on id or display name
+    if let Some(m) = models
+        .into_iter()
+        .find(|m| m.id.to_lowercase().contains(&lower) || m.display_name.to_lowercase().contains(&lower))
+    {
+        return Some(m);
+    }
+
+    // Ollama fallback — treat unrecognized model names as local Ollama models
+    Some(ModelConfig {
+        id: format!("ollama/{id}"),
+        provider: "ollama".into(),
+        display_name: id.to_string(),
+        max_tokens: 4096,
+        context_window: 8_192,
+        cost: ModelCost {
+            input_per_million: 0.0,
+            output_per_million: 0.0,
+            cache_read_per_million: 0.0,
+            cache_write_per_million: 0.0,
+        },
+        capabilities: ModelCapabilities {
+            thinking: false,
+            images: false,
+            tool_use: true,
+        },
     })
 }
 
@@ -325,8 +375,35 @@ mod tests {
     }
 
     #[test]
-    fn resolve_no_match() {
-        assert!(resolve_model("nonexistent-model-xyz").is_none());
+    fn resolve_unknown_falls_back_to_ollama() {
+        let m = resolve_model("llama3.2").unwrap();
+        assert_eq!(m.provider, "ollama");
+        assert_eq!(m.id, "ollama/llama3.2");
+
+        let m = resolve_model("mistral").unwrap();
+        assert_eq!(m.provider, "ollama");
+        assert_eq!(m.id, "ollama/mistral");
+    }
+
+    #[test]
+    fn resolve_aliases() {
+        assert_eq!(resolve_model("sonnet").unwrap().id, "claude-sonnet-4-6");
+        assert_eq!(resolve_model("opus").unwrap().id, "claude-opus-4-6");
+        assert_eq!(resolve_model("haiku").unwrap().id, "claude-haiku-4-5-20251001");
+        assert_eq!(resolve_model("gpt").unwrap().id, "gpt-4.1");
+        assert_eq!(resolve_model("gpt4").unwrap().id, "gpt-4.1");
+        assert_eq!(resolve_model("o3").unwrap().id, "o3");
+        assert_eq!(resolve_model("codex").unwrap().id, "o3");
+        assert_eq!(resolve_model("pro").unwrap().id, "gemini-2.5-pro");
+        assert_eq!(resolve_model("gemini").unwrap().id, "gemini-2.5-pro");
+        assert_eq!(resolve_model("flash").unwrap().id, "gemini-2.5-flash");
+    }
+
+    #[test]
+    fn resolve_aliases_case_insensitive() {
+        assert_eq!(resolve_model("SONNET").unwrap().id, "claude-sonnet-4-6");
+        assert_eq!(resolve_model("Opus").unwrap().id, "claude-opus-4-6");
+        assert_eq!(resolve_model("FLASH").unwrap().id, "gemini-2.5-flash");
     }
 
     #[test]

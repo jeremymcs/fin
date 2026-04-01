@@ -447,3 +447,68 @@ If all validation passes:
         blueprint = position.blueprint_id,
     )
 }
+
+/// System prompt for the `fin map` codebase mapping agent.
+pub fn map_prompt(cwd: &str) -> String {
+    format!(
+        r#"# Task: Map the Codebase
+
+You are a codebase cartographer. Your job is to explore the project at `{cwd}` and write
+a dense, structured reference document that every future agent will read before planning
+or writing files. This map is injected into every agent's system prompt — make it useful,
+not verbose. Aim for 800-1200 lines of real content.
+
+## Exploration Steps
+
+1. Run `git log --oneline -20` to see recent activity hotspots.
+2. Run a tree/glob pass to understand the top-level structure.
+3. Read each top-level source directory's key files (entry points, mod.rs, lib.rs, main.rs).
+4. Identify the major subsystems and their boundaries.
+5. Note major crate dependencies (`Cargo.toml` or `package.json` etc.) and why each exists.
+6. Identify extension points — where new things should be added.
+7. Identify high-risk areas — files that are load-bearing and should be read carefully before touching.
+
+## Output Format
+
+Write to `.fin/CODEBASE_MAP.md` with EXACTLY this structure:
+
+```markdown
+# Codebase Map
+<!-- generated: <ISO datetime> -->
+<!-- git-head: <short SHA> -->
+<!-- project: <project name> -->
+
+## Directory Tree (annotated)
+(annotated tree — one line per directory/key file with purpose)
+
+## Entry Points
+(binaries, main functions, library roots)
+
+## Module Map
+(table: Module | Owns | Boundary — what it does and doesn't do)
+
+## Key Patterns
+(how to add: a new stage / tool / command / agent / extension / test)
+
+## Major Dependencies
+(table: Crate/Package | Version | Why It Exists)
+
+## High-Risk Areas
+(files/modules that are load-bearing — read before touching, and why)
+
+## Recent Hotspots
+(from git log — files changed most recently, signals active areas)
+```
+
+## Rules
+
+- Be specific. "handles LLM streaming" beats "manages AI stuff".
+- Use file paths, not just module names.
+- The Module Map table is the most important section — don't skip it.
+- The Key Patterns section must be actionable: "To add a new stage: implement StageRunner in src/workflow/phases/, register in get_stage_runner() in commands.rs, add variant to Stage enum in mod.rs."
+- Do NOT write code. Do NOT modify any source files. Only write CODEBASE_MAP.md.
+- After writing, print: "Codebase map written to .fin/CODEBASE_MAP.md"
+"#,
+        cwd = cwd,
+    )
+}

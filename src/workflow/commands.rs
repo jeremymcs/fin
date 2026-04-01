@@ -19,6 +19,69 @@ use super::phases::validate::ValidateStage;
 use super::phases::{StageContext, StageRunner};
 use super::state::FinDir;
 
+/// Map the codebase — run a read-only agent that writes `.fin/CODEBASE_MAP.md`.
+pub async fn cmd_map(cwd: &Path, model_override: Option<&str>) -> anyhow::Result<()> {
+    let fin_dir = FinDir::new(cwd);
+
+    if !fin_dir.exists() {
+        anyhow::bail!("No .fin/ directory found. Run `fin init` first.");
+    }
+
+    let model = crate::io::print::pick_model(model_override)?;
+    eprintln!("[Mapping codebase — {} via {}]", model.display_name, model.provider);
+    eprintln!("Exploring {} ...\n", cwd.display());
+
+    let client = reqwest::Client::new();
+    let provider_registry = Arc::new(ProviderRegistry::with_defaults(client));
+    let provider = provider_registry
+        .get(&model.provider)
+        .ok_or_else(|| anyhow::anyhow!("Provider not found: {}", model.provider))?;
+
+    let io = PrintIO::new(true, true);
+    let cancel = tokio_util::sync::CancellationToken::new();
+
+    // Read-only tool set + write (for the map output only)
+    let allowed_tools: Vec<String> = ["read", "glob", "grep", "bash", "write"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    let tool_registry = crate::tools::ToolRegistry::filtered_defaults(cwd, &allowed_tools);
+
+    let prompt_content = super::prompts::map_prompt(&cwd.display().to_string());
+    let agent_context = crate::agent::prompt::AgentPromptContext {
+        available_agents: None,
+        agent_role: Some(prompt_content.clone()),
+    };
+    let system_prompt =
+        crate::agent::prompt::build_system_prompt(&tool_registry.schemas(), cwd, Some(&agent_context));
+
+    // Remove any stale map so the agent writes fresh
+    let map_path = fin_dir.map_path();
+    if map_path.exists() {
+        eprintln!("Replacing existing CODEBASE_MAP.md ...");
+    }
+
+    let mut agent_state = crate::agent::state::AgentState::new(model.clone(), cwd.to_path_buf());
+    agent_state.tool_registry = tool_registry;
+    agent_state.system_prompt = system_prompt;
+    agent_state
+        .messages
+        .push(crate::llm::types::Message::new_user(
+            "Map this codebase. Follow the instructions in your system prompt exactly.",
+        ));
+
+    crate::agent::agent_loop::run_agent_loop(&mut agent_state, provider, &io, cancel).await?;
+
+    if map_path.exists() {
+        eprintln!("\nMap saved to {}", map_path.display());
+        eprintln!("All agents will now reference this map. Re-run `fin map` after significant changes.");
+    } else {
+        eprintln!("\nWarning: CODEBASE_MAP.md was not written. Check agent output above.");
+    }
+
+    Ok(())
+}
+
 /// Initialize .fin/ workflow directory in the current project.
 pub async fn cmd_init(cwd: &Path) -> anyhow::Result<()> {
     let fin_dir = FinDir::new(cwd);
@@ -30,7 +93,9 @@ pub async fn cmd_init(cwd: &Path) -> anyhow::Result<()> {
 
     fin_dir.init()?;
     eprintln!("Initialized .fin/ workflow directory at {}", cwd.display());
-    eprintln!("Next: run `fin blueprint new <name>` to create your first blueprint.");
+    eprintln!("Next steps:");
+    eprintln!("  1. `fin map`              — map the codebase (agents reference this before planning)");
+    eprintln!("  2. `fin blueprint new <name>` — create your first blueprint");
     Ok(())
 }
 

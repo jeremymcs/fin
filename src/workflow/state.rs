@@ -67,6 +67,10 @@ impl FinDir {
         self.root.join("LEDGER.md")
     }
 
+    pub fn map_path(&self) -> PathBuf {
+        self.root.join("CODEBASE_MAP.md")
+    }
+
     pub fn db_path(&self) -> PathBuf {
         self.root.join("fin.db")
     }

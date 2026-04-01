@@ -167,6 +167,9 @@ pub enum Command {
 
     /// Write handoff.md and pause
     Pause,
+
+    /// Map the codebase — generate .fin/CODEBASE_MAP.md for agent reference
+    Map,
 }
 
 #[derive(Subcommand)]
@@ -341,6 +344,10 @@ impl Cli {
                 Command::Pause => {
                     let cwd = std::env::current_dir()?;
                     crate::workflow::commands::cmd_pause(&cwd)
+                }
+                Command::Map => {
+                    let cwd = std::env::current_dir()?;
+                    crate::workflow::commands::cmd_map(&cwd, self.model.as_deref()).await
                 }
             };
         }
