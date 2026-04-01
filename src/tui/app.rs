@@ -146,9 +146,8 @@ async fn run_tui_loop(
         if let Ok(sessions) = store.list() {
             if let Some(latest) = sessions.first() {
                 if let Ok(messages) = store.load(&latest.id) {
-                    // Always replay visual history
+                    // Load history into output_lines — splash stays up; scroll up to reveal
                     replay_history(&messages, &mut output_lines, &model.display_name);
-                    show_splash = false;
 
                     // Seed input history from previous user messages (Up arrow recall)
                     for msg in &messages {
@@ -925,6 +924,7 @@ async fn run_tui_loop(
                         }
                         // Scroll: Shift+Up/Down = 1 line, PageUp/PageDown = 10, Shift+Home/End = top/bottom
                         (KeyCode::Up, KeyModifiers::SHIFT) => {
+                            show_splash = false;
                             scroll = scroll.saturating_sub(1);
                             scroll_pinned = false;
                         }
@@ -940,6 +940,7 @@ async fn run_tui_loop(
                             }
                         }
                         (KeyCode::PageUp, _) => {
+                            show_splash = false;
                             scroll = scroll.saturating_sub(10);
                             scroll_pinned = false;
                         }
@@ -964,6 +965,7 @@ async fn run_tui_loop(
                             scroll_pinned = true;
                         }
                         (KeyCode::Home, KeyModifiers::SHIFT) => {
+                            show_splash = false;
                             scroll = 0;
                             scroll_pinned = false;
                         }
