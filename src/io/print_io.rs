@@ -113,6 +113,11 @@ impl AgentIO for PrintIO {
             AgentEvent::StageTransition { ref from, ref to } => {
                 eprintln!("\x1b[36m{from} → {to}\x1b[0m");
             }
+            // TUI-layer signals — no output in print mode
+            AgentEvent::AutoModeStart
+            | AgentEvent::AutoModeEnd
+            | AgentEvent::ContextUsage { .. }
+            | AgentEvent::GitCommitUpdate { .. } => {}
         }
         Ok(())
     }

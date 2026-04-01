@@ -346,6 +346,11 @@ pub struct WorkflowState {
     pub tasks_total: u32,
     pub tasks_done: u32,
     pub stage_pipeline: Vec<(String, StageStatus)>,
+    pub is_auto: bool,
+    pub model_display: String,
+    pub last_commit_hash: String,
+    pub last_commit_msg: String,
+    pub context_pct: u8,
 }
 
 impl Default for WorkflowState {
@@ -368,6 +373,11 @@ impl Default for WorkflowState {
                 ("Validate".into(), StageStatus::Pending),
                 ("Seal".into(), StageStatus::Pending),
             ],
+            is_auto: false,
+            model_display: String::new(),
+            last_commit_hash: String::new(),
+            last_commit_msg: String::new(),
+            context_pct: 0,
         }
     }
 }
@@ -632,6 +642,26 @@ pub fn format_token_count(count: u64) -> String {
     }
 }
 
+// ── Pure helper functions ────────────────────────────────────────────
+
+/// Compute context window usage percentage. Clamps at 100.
+pub fn compute_context_pct(input_tokens: u64, context_window: u64) -> u8 {
+    if context_window == 0 {
+        return 0;
+    }
+    ((input_tokens as f64 / context_window as f64) * 100.0).min(100.0) as u8
+}
+
+/// Parse a `git log -1 --format='%h %s'` output line into (hash, subject).
+pub fn parse_git_log_line(line: &str) -> (String, String) {
+    let trimmed = line.trim();
+    if let Some(pos) = trimmed.find(' ') {
+        (trimmed[..pos].to_string(), trimmed[pos + 1..].to_string())
+    } else {
+        (trimmed.to_string(), String::new())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -707,5 +737,86 @@ mod tests {
     #[test]
     fn test_format_token_count_large() {
         assert_eq!(format_token_count(15432), "15.4k");
+    }
+
+    // ── Phase 3 Wave 0: auto-run panel tests ────────────────────────
+
+    #[test]
+    fn test_workflow_state_auto_fields() {
+        let state = WorkflowState::default();
+        assert!(!state.is_auto, "is_auto must default to false");
+        assert!(state.model_display.is_empty(), "model_display must default to empty");
+        assert!(state.last_commit_hash.is_empty(), "last_commit_hash must default to empty");
+        assert!(state.last_commit_msg.is_empty(), "last_commit_msg must default to empty");
+        assert_eq!(state.context_pct, 0, "context_pct must default to 0");
+    }
+
+    #[test]
+    fn test_workflow_state_unit_start() {
+        let mut state = WorkflowState::default();
+        state.active = true;
+        state.current_stage = "build".to_string();
+        state.current_section = Some("section-03".to_string());
+
+        assert_eq!(state.current_stage, "build", "current_stage must be populated from WorkflowUnitStart");
+        assert_eq!(
+            state.current_section.as_deref(),
+            Some("section-03"),
+            "current_section must be populated from WorkflowUnitStart"
+        );
+
+        state.update_pipeline();
+        let build_status = state.stage_pipeline.iter()
+            .find(|(name, _)| name == "Build")
+            .map(|(_, status)| status);
+        assert!(build_status.is_some(), "Build stage must appear in pipeline after update");
+    }
+
+    #[test]
+    fn test_context_pct_calculation() {
+        assert_eq!(compute_context_pct(50_000, 200_000), 25);
+        assert_eq!(compute_context_pct(100_000, 200_000), 50);
+        assert_eq!(compute_context_pct(0, 200_000), 0);
+        assert_eq!(compute_context_pct(200_000, 200_000), 100);
+    }
+
+    #[test]
+    fn test_context_pct_clamped() {
+        assert_eq!(compute_context_pct(250_000, 200_000), 100);
+        assert_eq!(compute_context_pct(999_999, 200_000), 100);
+    }
+
+    #[test]
+    fn test_context_pct_zero_window() {
+        assert_eq!(compute_context_pct(50_000, 0), 0);
+    }
+
+    #[test]
+    fn test_pipeline_row_unchanged_in_auto() {
+        let mut state_normal = WorkflowState::default();
+        state_normal.active = true;
+        state_normal.current_stage = "build".to_string();
+        state_normal.update_pipeline();
+
+        let mut state_auto = WorkflowState::default();
+        state_auto.active = true;
+        state_auto.is_auto = true;
+        state_auto.current_stage = "build".to_string();
+        state_auto.update_pipeline();
+
+        assert_eq!(state_normal.stage_pipeline.len(), state_auto.stage_pipeline.len());
+        for (i, ((name_n, status_n), (name_a, status_a))) in state_normal
+            .stage_pipeline
+            .iter()
+            .zip(state_auto.stage_pipeline.iter())
+            .enumerate()
+        {
+            assert_eq!(name_n, name_a, "pipeline name mismatch at index {i}");
+            assert_eq!(
+                std::mem::discriminant(status_n),
+                std::mem::discriminant(status_a),
+                "pipeline status mismatch at index {i}"
+            );
+        }
     }
 }

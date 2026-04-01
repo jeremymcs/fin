@@ -228,6 +228,11 @@ impl AgentIO for RpcIO {
                 e.data = Some(serde_json::json!({"from": from, "to": to}));
                 e
             }
+            // TUI-layer signals — not serialized in RPC mode
+            AgentEvent::AutoModeStart
+            | AgentEvent::AutoModeEnd
+            | AgentEvent::ContextUsage { .. }
+            | AgentEvent::GitCommitUpdate { .. } => return Ok(()),
         };
         rpc.emit();
         Ok(())

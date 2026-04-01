@@ -315,4 +315,28 @@ mod tests {
         let branch = git.current_branch().await.unwrap();
         assert_eq!(branch, main);
     }
+
+    #[test]
+    fn test_last_commit_parse() {
+        use crate::tui::widgets::parse_git_log_line;
+
+        let (hash, msg) = parse_git_log_line("abc1234 feat: add scaffold");
+        assert_eq!(hash, "abc1234");
+        assert_eq!(msg, "feat: add scaffold");
+
+        // Edge: no subject
+        let (hash2, msg2) = parse_git_log_line("abc1234");
+        assert_eq!(hash2, "abc1234");
+        assert!(msg2.is_empty());
+
+        // Edge: multiple spaces in subject
+        let (hash3, msg3) = parse_git_log_line("def5678 fix: handle edge case");
+        assert_eq!(hash3, "def5678");
+        assert_eq!(msg3, "fix: handle edge case");
+
+        // Edge: empty input
+        let (hash4, msg4) = parse_git_log_line("");
+        assert!(hash4.is_empty());
+        assert!(msg4.is_empty());
+    }
 }

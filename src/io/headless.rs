@@ -193,6 +193,11 @@ impl AgentIO for HeadlessIO {
                 e.text = Some(format!("{from} → {to}"));
                 e
             }
+            // TUI-layer signals — not serialized in headless mode
+            AgentEvent::AutoModeStart
+            | AgentEvent::AutoModeEnd
+            | AgentEvent::ContextUsage { .. }
+            | AgentEvent::GitCommitUpdate { .. } => return Ok(()),
         };
 
         let json = serde_json::to_string(&he)?;

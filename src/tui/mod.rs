@@ -3,7 +3,7 @@
 
 mod app;
 mod tui_io;
-mod widgets;
+pub(crate) mod widgets;
 
 use crate::cli::Cli;
 
