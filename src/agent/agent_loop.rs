@@ -254,6 +254,14 @@ pub async fn run_agent_loop(
     })
     .await?;
 
+    // Emit context window utilization (D-07, D-08).
+    // Uses cumulative input_tokens vs model context_window. Clamped at 100.
+    let pct = crate::tui::widgets::compute_context_pct(
+        state.cumulative_usage.input_tokens,
+        state.model.context_window,
+    );
+    io.emit(AgentEvent::ContextUsage { pct }).await?;
+
     Ok(())
 }
 
