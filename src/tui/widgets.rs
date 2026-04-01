@@ -77,14 +77,14 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
     // -- Logo --
     let logo_lines: Vec<Line> = FIN_LOGO
         .iter()
-        .map(|l| Line::styled(*l, Style::default().fg(Color::DarkGray)))
+        .map(|l| Line::styled(*l, Style::default().fg(Palette::DIM)))
         .collect();
     let logo = Paragraph::new(logo_lines);
     f.render_widget(logo, h_layout[0]);
 
     // -- Separator --
     let sep_lines: Vec<Line> = (0..content_area.height)
-        .map(|_| Line::styled("│", Style::default().fg(Color::DarkGray)))
+        .map(|_| Line::styled("│", Style::default().fg(Palette::DIM)))
         .collect();
     let sep = Paragraph::new(sep_lines);
     f.render_widget(sep, h_layout[1]);
@@ -107,26 +107,26 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
 
     // Title + version
     let title_line = Line::from(vec![
-        Span::styled(" Fin", Style::default().fg(Color::White).bold()),
+        Span::styled(" Fin", Style::default().fg(Palette::TEXT).bold()),
         Span::raw("  "),
         Span::styled(
             format!("v{}", info.version),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Palette::DIM),
         ),
     ]);
     f.render_widget(Paragraph::new(title_line), info_layout[0]);
 
     // Model
     let model_line = Line::from(vec![
-        Span::styled(" Model     ", Style::default().fg(Color::Cyan).bold()),
-        Span::styled(&info.model_id, Style::default().fg(Color::White)),
+        Span::styled(" Model     ", Style::default().fg(Palette::ACCENT).bold()),
+        Span::styled(&info.model_id, Style::default().fg(Palette::TEXT)),
     ]);
     f.render_widget(Paragraph::new(model_line), info_layout[2]);
 
     // Provider
     let provider_line = Line::from(vec![
-        Span::styled(" Provider  ", Style::default().fg(Color::Cyan).bold()),
-        Span::styled(&info.provider, Style::default().fg(Color::White)),
+        Span::styled(" Provider  ", Style::default().fg(Palette::ACCENT).bold()),
+        Span::styled(&info.provider, Style::default().fg(Palette::TEXT)),
     ]);
     f.render_widget(Paragraph::new(provider_line), info_layout[3]);
 
@@ -138,8 +138,8 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
         info.directory.clone()
     };
     let dir_line = Line::from(vec![
-        Span::styled(" Directory ", Style::default().fg(Color::Cyan).bold()),
-        Span::styled(dir_display, Style::default().fg(Color::White)),
+        Span::styled(" Directory ", Style::default().fg(Palette::ACCENT).bold()),
+        Span::styled(dir_display, Style::default().fg(Palette::TEXT)),
     ]);
     f.render_widget(Paragraph::new(dir_line), info_layout[4]);
 
@@ -147,15 +147,15 @@ pub fn render_splash(f: &mut Frame, area: Rect, info: &SplashInfo) {
     let mut ext_spans: Vec<Span> = vec![Span::raw(" ")];
     for (i, (name, ok)) in info.extensions.iter().enumerate() {
         if i > 0 {
-            ext_spans.push(Span::styled("  ·  ", Style::default().fg(Color::DarkGray)));
+            ext_spans.push(Span::styled("  ·  ", Style::default().fg(Palette::DIM)));
         }
         ext_spans.push(Span::styled(
             name.clone(),
-            Style::default().fg(if *ok { Color::Green } else { Color::Red }),
+            Style::default().fg(if *ok { Palette::SUCCESS } else { Palette::ERROR }),
         ));
         ext_spans.push(Span::styled(
             if *ok { " ✓" } else { " ✗" },
-            Style::default().fg(if *ok { Color::Green } else { Color::Red }),
+            Style::default().fg(if *ok { Palette::SUCCESS } else { Palette::ERROR }),
         ));
     }
     f.render_widget(Paragraph::new(Line::from(ext_spans)), info_layout[6]);
@@ -172,35 +172,35 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
                 if i > 0 {
                     spans_lines.push(Line::styled(
                         "─".repeat(60),
-                        Style::default().fg(Color::DarkGray),
+                        Style::default().fg(Palette::DIM),
                     ));
                 }
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Green).bold(),
+                    Style::default().fg(Palette::SUCCESS).bold(),
                 ));
             }
             LineKind::Assistant => {
                 // Parse markdown-like formatting in assistant output
                 let text = &line.text;
                 if text.starts_with("# ") || text.starts_with("## ") || text.starts_with("### ") {
-                    // Markdown headers — bold cyan
+                    // Markdown headers — bold accent
                     spans_lines.push(Line::styled(
                         text.clone(),
-                        Style::default().fg(Color::Cyan).bold(),
+                        Style::default().fg(Palette::ACCENT).bold(),
                     ));
                 } else if text.starts_with("```") {
                     // Code fence markers — dim
                     spans_lines.push(Line::styled(
                         text.clone(),
-                        Style::default().fg(Color::DarkGray),
+                        Style::default().fg(Palette::DIM),
                     ));
                 } else if text.starts_with("- ") || text.starts_with("* ") {
                     // Unordered bullet lists
                     let content = text.trim_start_matches("- ").trim_start_matches("* ");
                     let spans = vec![
-                        Span::styled("  • ", Style::default().fg(Color::Cyan)),
-                        Span::styled(content.to_string(), Style::default().fg(Color::White)),
+                        Span::styled("  \u{2022} ", Style::default().fg(Palette::ACCENT)),
+                        Span::styled(content.to_string(), Style::default().fg(Palette::TEXT)),
                     ];
                     spans_lines.push(Line::from(spans));
                 } else if is_numbered_list(text) {
@@ -209,48 +209,48 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
                     let num = &text[..dot_pos + 1];
                     let content = text[dot_pos + 2..].to_string();
                     let spans = vec![
-                        Span::styled(format!("  {num} "), Style::default().fg(Color::Cyan)),
-                        Span::styled(content, Style::default().fg(Color::White)),
+                        Span::styled(format!("  {num} "), Style::default().fg(Palette::ACCENT)),
+                        Span::styled(content, Style::default().fg(Palette::TEXT)),
                     ];
                     spans_lines.push(Line::from(spans));
                 } else if text.ends_with('?') {
                     // Questions — make them stand out
-                    spans_lines.push(Line::styled(text.clone(), Style::default().fg(Color::Cyan)));
+                    spans_lines.push(Line::styled(text.clone(), Style::default().fg(Palette::ACCENT)));
                 } else {
                     spans_lines.push(Line::styled(
                         text.clone(),
-                        Style::default().fg(Color::White),
+                        Style::default().fg(Palette::TEXT),
                     ));
                 }
             }
             LineKind::Thinking => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::DarkGray).italic(),
+                    Style::default().fg(Palette::DIM).italic(),
                 ));
             }
             LineKind::Tool => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Yellow).dim(),
+                    Style::default().fg(Palette::TOOL).dim(),
                 ));
             }
             LineKind::ToolResult => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Green).dim(),
+                    Style::default().fg(Palette::SUCCESS).dim(),
                 ));
             }
             LineKind::Error => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::Red).bold(),
+                    Style::default().fg(Palette::ERROR).bold(),
                 ));
             }
             LineKind::System => {
                 spans_lines.push(Line::styled(
                     line.text.clone(),
-                    Style::default().fg(Color::DarkGray),
+                    Style::default().fg(Palette::DIM),
                 ));
             }
         }
@@ -266,11 +266,11 @@ pub fn render_output<'a>(lines: &[OutputLine], scroll: u16) -> Paragraph<'a> {
 pub fn render_input<'a>(text: &str, model_name: &str) -> Paragraph<'a> {
     let prompt = format!("[{model_name}] > {text}");
     Paragraph::new(prompt)
-        .style(Style::default().fg(Color::Cyan))
+        .style(Style::default().fg(Palette::ACCENT))
         .block(
             Block::default()
                 .borders(Borders::TOP)
-                .border_style(Style::default().fg(Color::DarkGray)),
+                .border_style(Style::default().fg(Palette::DIM)),
         )
 }
 
@@ -308,7 +308,7 @@ pub fn render_status_bar<'a>(
         )
     };
 
-    Paragraph::new(status).style(Style::default().fg(Color::White).bg(Color::DarkGray))
+    Paragraph::new(status).style(Style::default().fg(Palette::TEXT).bg(Palette::STATUS_BG))
 }
 
 // ── Workflow progress panel ──────────────────────────────────────────
@@ -392,14 +392,14 @@ impl WorkflowState {
 pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
     let block = Block::default()
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::DarkGray))
+        .border_style(Style::default().fg(Palette::DIM))
         .title(Span::styled(
             format!(" {} ", state.blueprint_id),
-            Style::default().fg(Color::White).bold(),
+            Style::default().fg(Palette::TEXT).bold(),
         ))
         .title(Span::styled(
             format!(" {} ", capitalize(&state.current_stage)),
-            Style::default().fg(Color::Cyan),
+            Style::default().fg(Palette::ACCENT),
         ));
 
     let inner = block.inner(area);
@@ -421,9 +421,9 @@ pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
             pipeline_spans.push(Span::styled("  ", Style::default()));
         }
         let (icon, color) = match status {
-            StageStatus::Done => ("✓", Color::Green),
-            StageStatus::Active => ("●", Color::Cyan),
-            StageStatus::Pending => ("○", Color::DarkGray),
+            StageStatus::Done => ("✓", Palette::SUCCESS),
+            StageStatus::Active => ("●", Palette::ACCENT),
+            StageStatus::Pending => ("○", Palette::DIM),
         };
         pipeline_spans.push(Span::styled(
             format!("{name} {icon}"),
@@ -449,18 +449,18 @@ pub fn render_workflow_panel(f: &mut Frame, area: Rect, state: &WorkflowState) {
     let empty = bar_width.saturating_sub(filled);
 
     let progress_spans = vec![
-        Span::styled(&label, Style::default().fg(Color::White)),
+        Span::styled(&label, Style::default().fg(Palette::TEXT)),
         Span::styled(
             "█".repeat(filled as usize),
-            Style::default().fg(Color::Green),
+            Style::default().fg(Palette::SUCCESS),
         ),
         Span::styled(
             "░".repeat(empty as usize),
-            Style::default().fg(Color::DarkGray),
+            Style::default().fg(Palette::DIM),
         ),
         Span::styled(
             format!("  {}/{} tasks", done, total),
-            Style::default().fg(Color::White),
+            Style::default().fg(Palette::TEXT),
         ),
     ];
     f.render_widget(Paragraph::new(Line::from(progress_spans)), layout[1]);
