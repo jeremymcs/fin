@@ -13,7 +13,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use super::tui_io::TuiIO;
-use super::widgets::{self, LineKind, OutputLine};
+use super::widgets::{self, LineKind, OutputLine, Palette};
 use crate::agent::agent_loop::run_agent_loop;
 use crate::agent::prompt::{AgentPromptContext, build_system_prompt};
 use crate::agent::state::AgentState;
@@ -340,7 +340,7 @@ async fn run_tui_loop(
                     ratatui::widgets::Block::bordered()
                         .title(" Select Model (↑↓ Enter Esc) ")
                         .border_style(
-                            ratatui::style::Style::default().fg(ratatui::style::Color::Cyan),
+                            ratatui::style::Style::default().fg(Palette::ACCENT),
                         ),
                 );
                 f.render_widget(picker, picker_area);
@@ -376,6 +376,12 @@ async fn run_tui_loop(
                                 output_lines.push(OutputLine::assistant(part.to_string()));
                             }
                         } else {
+                            // Newline boundary — finalize the previous assistant line (D-08)
+                            if let Some(prev) = output_lines.iter_mut().rev()
+                                .find(|l| matches!(l.kind, LineKind::Assistant))
+                            {
+                                prev.is_final = true;
+                            }
                             // Subsequent chunks after \n — always new line
                             output_lines.push(OutputLine::assistant(part.to_string()));
                         }
@@ -425,13 +431,25 @@ async fn run_tui_loop(
                 }
                 AgentEvent::AgentEnd { usage } => {
                     is_streaming = false;
+
+                    // Finalize last assistant line unconditionally (D-08: enables markdown parsing)
+                    if let Some(last) = output_lines.iter_mut().rev()
+                        .find(|l| matches!(l.kind, LineKind::Assistant))
+                    {
+                        last.is_final = true;
+                    }
+
                     total_in += usage.input_tokens;
                     total_out += usage.output_tokens;
                     total_cost += usage.cost.total;
+
+                    // Per-message cost annotation (D-12: dim line after each response)
                     if usage.input_tokens > 0 || usage.output_tokens > 0 {
+                        let in_fmt = widgets::format_token_count(usage.input_tokens);
+                        let out_fmt = widgets::format_token_count(usage.output_tokens);
                         output_lines.push(OutputLine::system(format!(
-                            "└─ {} in / {} out ────",
-                            usage.input_tokens, usage.output_tokens
+                            "  \u{21b3} {} in / {} out  ${:.4}",
+                            in_fmt, out_fmt, usage.cost.total
                         )));
                     }
                     output_lines.push(OutputLine::system(String::new()));
