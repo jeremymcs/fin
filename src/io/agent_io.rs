@@ -77,6 +77,19 @@ pub enum AgentEvent {
     WorkflowError {
         message: String,
     },
+    /// Stage transition notification.
+    StageTransition {
+        from: String,
+        to: String,
+    },
+    /// Auto-loop execution started — TUI-layer signal (D-13).
+    AutoModeStart,
+    /// Auto-loop execution ended (completed, blocked, or cancelled) — TUI-layer signal (D-13).
+    AutoModeEnd,
+    /// Context window utilization — emitted once per agent turn completion (D-07).
+    ContextUsage { pct: u8 },
+    /// Git commit update — result of async git log fetch after WorkflowUnitEnd.
+    GitCommitUpdate { hash: String, msg: String },
 }
 
 /// Transport-agnostic interface for agent communication.

@@ -318,6 +318,11 @@ pub struct WorkflowState {
     pub tasks_total: u32,
     pub tasks_done: u32,
     pub stage_pipeline: Vec<(String, StageStatus)>,
+    pub is_auto: bool,
+    pub model_display: String,
+    pub last_commit_hash: String,
+    pub last_commit_msg: String,
+    pub context_pct: u8,
 }
 
 impl Default for WorkflowState {
@@ -340,6 +345,11 @@ impl Default for WorkflowState {
                 ("Validate".into(), StageStatus::Pending),
                 ("Seal".into(), StageStatus::Pending),
             ],
+            is_auto: false,
+            model_display: String::new(),
+            last_commit_hash: String::new(),
+            last_commit_msg: String::new(),
+            context_pct: 0,
         }
     }
 }
@@ -523,5 +533,25 @@ impl OutputLine {
             text: text.into(),
             kind: LineKind::Error,
         }
+    }
+}
+
+// ── Pure helper functions ────────────────────────────────────────────
+
+/// Compute context window usage percentage. Clamps at 100.
+pub fn compute_context_pct(input_tokens: u64, context_window: u64) -> u8 {
+    if context_window == 0 {
+        return 0;
+    }
+    ((input_tokens as f64 / context_window as f64) * 100.0).min(100.0) as u8
+}
+
+/// Parse a `git log -1 --format='%h %s'` output line into (hash, subject).
+pub fn parse_git_log_line(line: &str) -> (String, String) {
+    let trimmed = line.trim();
+    if let Some(pos) = trimmed.find(' ') {
+        (trimmed[..pos].to_string(), trimmed[pos + 1..].to_string())
+    } else {
+        (trimmed.to_string(), String::new())
     }
 }
