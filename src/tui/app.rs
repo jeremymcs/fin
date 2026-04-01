@@ -2039,6 +2039,20 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
                     .unwrap_or_default();
                 auth.set_api_key(provider, key.to_string());
                 auth.save(&paths.auth_file)?;
+                // Also inject into the current process env so the running provider
+                // picks it up immediately without relying on the keyring lookup chain.
+                let env_var = match provider {
+                    "anthropic" => Some("ANTHROPIC_API_KEY"),
+                    "openai" => Some("OPENAI_API_KEY"),
+                    "google" => Some("GOOGLE_API_KEY"),
+                    "mistral" => Some("MISTRAL_API_KEY"),
+                    _ => None,
+                };
+                if let Some(var) = env_var {
+                    // Safety: single-threaded at this point in the TUI event loop;
+                    // no other threads are reading this env var concurrently.
+                    unsafe { std::env::set_var(var, key); }
+                }
                 Ok(format!("{provider} key saved."))
             } else if let Some(rest) = sub.strip_prefix("remove-key ") {
                 let provider = rest.trim();
