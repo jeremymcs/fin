@@ -629,10 +629,13 @@ async fn run_tui_loop(
                         workflow_state.active,
                     );
                 }
-                AgentEvent::TurnStart => {}
-                AgentEvent::TurnEnd => {}
-                AgentEvent::AgentStart { .. } => {
+                AgentEvent::TurnStart => {
                     is_streaming = true;
+                }
+                AgentEvent::TurnEnd => {
+                    is_streaming = false;
+                }
+                AgentEvent::AgentStart { .. } => {
                     // Add a speaker label for the agent turn
                     output_lines.push(OutputLine::system(format!("┌─ {} ────", model_for_display)));
                 }
