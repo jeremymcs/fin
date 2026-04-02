@@ -413,10 +413,8 @@ pub fn parse_anthropic_sse(
                                     // Associate signature with the thinking block at this index.
                                     // Must be sent back verbatim in subsequent API calls.
                                     message.set_last_thinking_signature(&signature);
-                                    let _ = tx.send(StreamEvent::ThinkingSignature {
-                                        index,
-                                        signature,
-                                    });
+                                    let _ = tx
+                                        .send(StreamEvent::ThinkingSignature { index, signature });
                                 }
                                 ContentDelta::InputJsonDelta { partial_json } => {
                                     if let Some(tc) = tool_calls.get_mut(&index) {

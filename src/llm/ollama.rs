@@ -8,7 +8,7 @@ use std::pin::Pin;
 use tokio_util::sync::CancellationToken;
 
 use crate::llm::models::ModelConfig;
-use crate::llm::openai::{parse_openai_sse, OpenAIProvider};
+use crate::llm::openai::{OpenAIProvider, parse_openai_sse};
 use crate::llm::provider::LlmProvider;
 use crate::llm::types::*;
 
@@ -82,8 +82,7 @@ impl LlmProvider for OllamaProvider {
         let base = Self::base_url();
         let model_id = Self::strip_prefix(&model.id);
 
-        let messages =
-            OpenAIProvider::convert_messages(&context.system_prompt, &context.messages);
+        let messages = OpenAIProvider::convert_messages(&context.system_prompt, &context.messages);
 
         let mut body = serde_json::json!({
             "model": model_id,

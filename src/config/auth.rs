@@ -66,9 +66,19 @@ impl AuthStore {
 
     /// Get API key for a provider, checking: env vars → keyring → stored auth file.
     pub fn get_api_key(&self, provider: &str) -> Option<String> {
+        if provider == "openai" {
+            // OAuth bearer tokens (Codex/OpenAI session style) are accepted first.
+            // Falls back to standard API key auth.
+            return std::env::var("OPENAI_ACCESS_TOKEN")
+                .ok()
+                .or_else(|| std::env::var("OPENAI_BEARER_TOKEN").ok())
+                .or_else(|| std::env::var("OPENAI_API_KEY").ok())
+                .or_else(|| self.get_keyring_key(provider))
+                .or_else(|| self.get_stored_key(provider));
+        }
+
         let env_key = match provider {
             "anthropic" => "ANTHROPIC_API_KEY",
-            "openai" => "OPENAI_API_KEY",
             "google" => "GOOGLE_API_KEY",
             "mistral" => "MISTRAL_API_KEY",
             _ => {
@@ -143,6 +153,8 @@ impl AuthStore {
         // Then env vars
         if std::env::var("ANTHROPIC_API_KEY").is_ok()
             || std::env::var("OPENAI_API_KEY").is_ok()
+            || std::env::var("OPENAI_ACCESS_TOKEN").is_ok()
+            || std::env::var("OPENAI_BEARER_TOKEN").is_ok()
             || std::env::var("GOOGLE_API_KEY").is_ok()
             || std::env::var("GOOGLE_CLOUD_PROJECT").is_ok()
             || std::env::var("CLOUDSDK_CORE_PROJECT").is_ok()
@@ -157,19 +169,16 @@ impl AuthStore {
 
     /// Quick synchronous check if Ollama is reachable.
     fn check_ollama_available() -> bool {
-        let host = std::env::var("OLLAMA_HOST")
-            .unwrap_or_else(|_| "http://localhost:11434".to_string());
+        let host =
+            std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "http://localhost:11434".to_string());
         // Extract host:port from URL
         let addr_str = host
             .strip_prefix("http://")
             .or_else(|| host.strip_prefix("https://"))
             .unwrap_or(&host);
         if let Ok(addr) = addr_str.parse::<std::net::SocketAddr>() {
-            std::net::TcpStream::connect_timeout(
-                &addr,
-                std::time::Duration::from_millis(500),
-            )
-            .is_ok()
+            std::net::TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(500))
+                .is_ok()
         } else {
             // Try with default port if no port specified
             let with_port = if addr_str.contains(':') {

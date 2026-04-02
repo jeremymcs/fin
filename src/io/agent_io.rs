@@ -87,9 +87,14 @@ pub enum AgentEvent {
     /// Auto-loop execution ended (completed, blocked, or cancelled) — TUI-layer signal (D-13).
     AutoModeEnd,
     /// Context window utilization — emitted once per agent turn completion (D-07).
-    ContextUsage { pct: u8 },
+    ContextUsage {
+        pct: u8,
+    },
     /// Git commit update — result of async git log fetch after WorkflowUnitEnd.
-    GitCommitUpdate { hash: String, msg: String },
+    GitCommitUpdate {
+        hash: String,
+        msg: String,
+    },
 }
 
 /// Transport-agnostic interface for agent communication.

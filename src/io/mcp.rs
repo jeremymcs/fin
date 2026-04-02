@@ -57,7 +57,11 @@ impl JsonRpcResponse {
 
 pub async fn run() -> anyhow::Result<()> {
     let cwd = std::env::current_dir()?;
-    let tool_registry = ToolRegistry::with_defaults(&cwd);
+    let mut tool_registry = ToolRegistry::with_defaults(&cwd);
+    let ext_registry = crate::extensions::ExtensionRegistry::with_defaults();
+    for tool in ext_registry.tools() {
+        tool_registry.register(tool);
+    }
 
     let stdin = tokio::io::stdin();
     let mut stdout = tokio::io::stdout();

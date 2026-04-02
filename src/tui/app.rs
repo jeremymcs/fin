@@ -108,6 +108,11 @@ const TOAST_TTL: Duration = Duration::from_secs(5);
 const TOAST_MAX: usize = 2;
 const TOAST_WIDTH: u16 = 40;
 const TOAST_HEIGHT: u16 = 3;
+const LOGIN_PROVIDERS: &[(&str, &str)] = &[
+    ("openai", "https://platform.openai.com/"),
+    ("anthropic", "https://console.anthropic.com/"),
+    ("google", "https://aistudio.google.com/"),
+];
 
 fn push_toast(toasts: &mut VecDeque<(String, Instant, ToastKind)>, msg: String, kind: ToastKind) {
     if toasts.len() >= TOAST_MAX {
@@ -143,6 +148,7 @@ const SLASH_COMMANDS: &[&str] = &[
     "pause",
     "map",
     "config",
+    "login",
     "sessions",
     "worktree",
     "help",
@@ -209,6 +215,9 @@ async fn run_tui_loop(
     // Model picker overlay state
     let mut model_picker_active = false;
     let mut model_picker_index: usize = 0;
+    // Login picker overlay state
+    let mut login_picker_active = false;
+    let mut login_picker_index: usize = 0;
 
     // Help overlay state
     let mut help_active = false;
@@ -398,6 +407,45 @@ async fn run_tui_loop(
                 let picker = ratatui::widgets::Paragraph::new(items).block(
                     ratatui::widgets::Block::bordered()
                         .title(" Select Model (↑↓ Enter Esc) ")
+                        .border_style(ratatui::style::Style::default().fg(Palette::ACCENT)),
+                );
+                f.render_widget(picker, picker_area);
+            }
+
+            // Login picker overlay
+            if login_picker_active {
+                let area = f.area();
+                let picker_height = (LOGIN_PROVIDERS.len() as u16 + 2).min(area.height - 4);
+                let picker_width = 52u16.min(area.width - 4);
+                let picker_area = ratatui::layout::Rect {
+                    x: (area.width.saturating_sub(picker_width)) / 2,
+                    y: (area.height.saturating_sub(picker_height)) / 2,
+                    width: picker_width,
+                    height: picker_height,
+                };
+
+                f.render_widget(ratatui::widgets::Clear, picker_area);
+
+                let items: Vec<ratatui::text::Line> = LOGIN_PROVIDERS
+                    .iter()
+                    .enumerate()
+                    .map(|(i, (provider, url))| {
+                        let label = format!(" {provider:<10} {url}");
+                        if i == login_picker_index {
+                            ratatui::text::Line::from(label).style(
+                                ratatui::style::Style::default()
+                                    .bg(ratatui::style::Color::White)
+                                    .fg(ratatui::style::Color::Black),
+                            )
+                        } else {
+                            ratatui::text::Line::from(label)
+                        }
+                    })
+                    .collect();
+
+                let picker = ratatui::widgets::Paragraph::new(items).block(
+                    ratatui::widgets::Block::bordered()
+                        .title(" Login Provider (↑↓ Enter Esc) ")
                         .border_style(ratatui::style::Style::default().fg(Palette::ACCENT)),
                 );
                 f.render_widget(picker, picker_area);
@@ -653,6 +701,14 @@ async fn run_tui_loop(
                     workflow_state.current_section = section_id;
                     workflow_state.current_task = task_id;
                     workflow_state.update_pipeline();
+                    // Recalculate scroll now that the workflow panel has claimed space
+                    auto_scroll(
+                        &output_lines,
+                        &mut scroll,
+                        terminal.size().map(|s| s.height).unwrap_or(24),
+                        scroll_pinned,
+                        true,
+                    );
                 }
                 AgentEvent::WorkflowUnitEnd { .. } => {
                     // Async git fetch — non-blocking (D-05).
@@ -786,6 +842,59 @@ async fn run_tui_loop(
                         continue;
                     }
 
+                    // Login picker intercepts keys when active
+                    if login_picker_active {
+                        match key.code {
+                            KeyCode::Up => {
+                                login_picker_index = login_picker_index.saturating_sub(1);
+                            }
+                            KeyCode::Down => {
+                                if login_picker_index + 1 < LOGIN_PROVIDERS.len() {
+                                    login_picker_index += 1;
+                                }
+                            }
+                            KeyCode::Enter => {
+                                let (provider, url) = LOGIN_PROVIDERS[login_picker_index];
+                                match open_url_in_browser(url) {
+                                    Ok(()) => {
+                                        output_lines.push(OutputLine::system(format!(
+                                            "Opened {provider} login in browser: {url}"
+                                        )));
+                                        push_toast(
+                                            &mut toasts,
+                                            format!("Opened {provider} login"),
+                                            ToastKind::Info,
+                                        );
+                                    }
+                                    Err(e) => {
+                                        output_lines.push(OutputLine::error(format!(
+                                            "Could not open browser ({e}). Open manually: {url}"
+                                        )));
+                                        push_toast(
+                                            &mut toasts,
+                                            format!("Login open failed: {provider}"),
+                                            ToastKind::Error,
+                                        );
+                                    }
+                                }
+                                output_lines.push(OutputLine::system(String::new()));
+                                auto_scroll(
+                                    &output_lines,
+                                    &mut scroll,
+                                    terminal.size()?.height,
+                                    scroll_pinned,
+                                    workflow_state.active,
+                                );
+                                login_picker_active = false;
+                            }
+                            KeyCode::Esc | KeyCode::Char('q') => {
+                                login_picker_active = false;
+                            }
+                            _ => {}
+                        }
+                        continue;
+                    }
+
                     // Help overlay intercepts all keys when active (per D-03, HELP-02)
                     if help_active {
                         help_active = false;
@@ -850,6 +959,19 @@ async fn run_tui_loop(
                                         output_lines.push(OutputLine::user(format!("> {prompt}")));
                                         let _ = user_msg_tx.send(format!("__model:{model_arg}__"));
                                         continue;
+                                    }
+
+                                    // /login — open provider login/oauth page picker
+                                    if cmd == "login" {
+                                        let login_arg = rest
+                                            .split_once(' ')
+                                            .map(|(_, a)| a.trim())
+                                            .unwrap_or("");
+                                        if login_arg.is_empty() {
+                                            login_picker_index = 0;
+                                            login_picker_active = true;
+                                            continue;
+                                        }
                                     }
 
                                     // /blueprint — intent-based routing
@@ -1170,7 +1292,9 @@ async fn run_tui_loop(
                         }
                         // Help overlay — ? key with empty input and no other overlay (per D-04, HELP-03)
                         (KeyCode::Char('?'), _)
-                            if input_text.is_empty() && !model_picker_active =>
+                            if input_text.is_empty()
+                                && !model_picker_active
+                                && !login_picker_active =>
                         {
                             help_active = true;
                         }
@@ -1797,6 +1921,15 @@ async fn run_tui_agent(
                     let io = TuiIO::with_follow_up(event_tx.clone(), steer_rx, follow_up_rx);
 
                     let stage = crate::workflow::Stage::Define;
+
+                    // Emit WorkflowUnitStart so the phase bar panel activates
+                    let _ = event_tx.send(AgentEvent::WorkflowUnitStart {
+                        blueprint_id: id.clone(),
+                        section_id: None,
+                        task_id: None,
+                        stage: stage.label().to_string(),
+                        unit_type: "DefineBlueprint".to_string(),
+                    });
                     let mut ctx = crate::workflow::phases::StageContext::load(
                         &fin_dir, &id, None, None, stage,
                     );
@@ -2380,6 +2513,24 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
                 )
             }
         }
+        "login" => {
+            let provider = _args.trim().to_lowercase();
+            if provider.is_empty() {
+                return Ok("Usage: /login <provider>\nSupported: openai, anthropic, google".into());
+            }
+            let Some(url) = provider_login_url(&provider) else {
+                return Ok(format!(
+                    "Unknown provider '{provider}'. Supported: openai, anthropic, google"
+                ));
+            };
+
+            match open_url_in_browser(url) {
+                Ok(()) => Ok(format!("Opened {provider} login in browser: {url}")),
+                Err(e) => Ok(format!(
+                    "Could not open browser automatically ({e}).\nOpen manually: {url}"
+                )),
+            }
+        }
         "sessions" => {
             let paths = crate::config::paths::FinPaths::resolve()?;
             let store = crate::db::session::SessionStore::new(&paths.sessions_dir)?;
@@ -2437,6 +2588,7 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
                  /config [list-keys]                      — Show configured API keys\n\
                  /config set-key <provider> <key>         — Save an API key\n\
                  /config remove-key <provider>            — Remove an API key\n\
+                 /login <provider>                        — Open provider login/oauth page\n\
                  /sessions                                — List recent sessions\n\
                  /worktree [list]                         — List worktrees\n\
                  /worktree create|merge|remove <name>     — Manage worktrees\n\
@@ -2457,6 +2609,33 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
         _ => Ok(format!(
             "Unknown command: /{cmd}. Type /help for available commands."
         )),
+    }
+}
+
+fn provider_login_url(provider: &str) -> Option<&'static str> {
+    match provider {
+        "openai" => Some("https://platform.openai.com/"),
+        "anthropic" => Some("https://console.anthropic.com/"),
+        "google" | "gemini" => Some("https://aistudio.google.com/"),
+        _ => None,
+    }
+}
+
+fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
+    let status = if cfg!(target_os = "macos") {
+        std::process::Command::new("open").arg(url).status()?
+    } else if cfg!(target_os = "windows") {
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", url])
+            .status()?
+    } else {
+        std::process::Command::new("xdg-open").arg(url).status()?
+    };
+
+    if status.success() {
+        Ok(())
+    } else {
+        anyhow::bail!("browser opener exited with status: {status}");
     }
 }
 
@@ -2523,6 +2702,32 @@ mod tests {
             toasts.pop_front();
         }
         assert_eq!(toasts.len(), 0);
+    }
+
+    #[test]
+    fn provider_login_url_known() {
+        assert_eq!(
+            provider_login_url("openai"),
+            Some("https://platform.openai.com/")
+        );
+        assert_eq!(
+            provider_login_url("anthropic"),
+            Some("https://console.anthropic.com/")
+        );
+        assert_eq!(
+            provider_login_url("google"),
+            Some("https://aistudio.google.com/")
+        );
+        assert_eq!(
+            provider_login_url("gemini"),
+            Some("https://aistudio.google.com/")
+        );
+    }
+
+    #[test]
+    fn provider_login_url_unknown() {
+        assert_eq!(provider_login_url("bedrock"), None);
+        assert_eq!(provider_login_url(""), None);
     }
 
     #[test]

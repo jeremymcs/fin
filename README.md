@@ -2,7 +2,7 @@
 
 AI coding agent — one command, walk away, come back to a built project with clean git history.
 
-**3.7MB binary. Zero runtime dependencies. Instant startup.**
+**Small static-ish binary. Minimal operational overhead. Instant startup.**
 
 ## Quick Start
 
@@ -37,7 +37,7 @@ fin models
 
 ## Tools
 
-7 built-in tools + 2 extension tools:
+7 built-in tools + 3 extension tools:
 
 | Tool | Description |
 |------|-------------|
@@ -50,6 +50,16 @@ fin models
 | `git` | Version control operations |
 | `web_search` | Brave/Tavily web search (extension) |
 | `resolve_library` | Context7 library docs (extension) |
+| `get_library_docs` | Fetch docs for a resolved Context7 library (extension) |
+
+All modes register built-in tools. Print/headless/RPC/HTTP/MCP also register bundled extension tools.
+
+## HTTP API Safety
+
+By default `fin serve` binds to loopback (`127.0.0.1`) and is intended for local use.
+
+- If you bind to a non-loopback host, `FIN_HTTP_TOKEN` is required.
+- If `FIN_HTTP_TOKEN` is set, provide `Authorization: Bearer <token>` or `x-api-key: <token>`.
 
 ## LLM Providers
 
@@ -58,7 +68,7 @@ All via raw HTTP — no SDKs, no bloat:
 | Provider | Models | Auth |
 |----------|--------|------|
 | Anthropic | Claude Opus/Sonnet/Haiku 4.x | `ANTHROPIC_API_KEY` |
-| OpenAI | GPT-4.1, o3 | `OPENAI_API_KEY` |
+| OpenAI | GPT-4.1, o3 | `OPENAI_ACCESS_TOKEN` or `OPENAI_API_KEY` |
 | Google | Gemini 2.5 Pro/Flash | `GOOGLE_API_KEY` |
 | Google Vertex AI | Claude Sonnet/Haiku (Vertex) | `GOOGLE_APPLICATION_CREDENTIALS` |
 | AWS Bedrock | Claude Sonnet/Haiku (Bedrock) | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` |
@@ -68,10 +78,8 @@ All via raw HTTP — no SDKs, no bloat:
 
 ```
 86 Rust source files
-~21,000 lines of code
-3.7MB release binary (stripped, LTO)
-7 integration tests
-0 runtime dependencies
+~22,000 lines of code
+17 integration tests
 ```
 
 ## Development

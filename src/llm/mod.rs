@@ -50,15 +50,18 @@ pub fn list_models(search: Option<&str>) {
     let aliases = models::model_aliases();
 
     println!(
-        "{:<35} {:<12} {:<10} {:<14} {}",
-        "Model", "Provider", "Context", "$/1M in/out", "Alias"
+        "{:<35} {:<12} {:<10} {:<14} Alias",
+        "Model", "Provider", "Context", "$/1M in/out"
     );
     println!("{}", "-".repeat(85));
     for m in filtered {
         let cost = if m.cost.input_per_million == 0.0 && m.cost.output_per_million == 0.0 {
             "free (local)".to_string()
         } else {
-            format!("${:.2}/${:.2}", m.cost.input_per_million, m.cost.output_per_million)
+            format!(
+                "${:.2}/${:.2}",
+                m.cost.input_per_million, m.cost.output_per_million
+            )
         };
         // Collect all aliases that point to this model
         let model_aliases: Vec<&str> = aliases
@@ -73,11 +76,7 @@ pub fn list_models(search: Option<&str>) {
         };
         println!(
             "{:<35} {:<12} {:<10} {:<14} {}",
-            m.display_name,
-            m.provider,
-            m.context_window,
-            cost,
-            alias_str,
+            m.display_name, m.provider, m.context_window, cost, alias_str,
         );
     }
 }

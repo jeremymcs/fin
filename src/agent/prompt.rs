@@ -181,7 +181,10 @@ fn load_context_files(cwd: &Path) -> Option<String> {
             let stale_warning = check_map_staleness(cwd, &map_content);
 
             let capped = if map_content.len() > 5000 {
-                format!("{}...\n(map truncated — run `fin map` to refresh)", &map_content[..5000])
+                format!(
+                    "{}...\n(map truncated — run `fin map` to refresh)",
+                    &map_content[..5000]
+                )
             } else {
                 map_content
             };

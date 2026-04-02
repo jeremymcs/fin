@@ -3,7 +3,10 @@
 
 use axum::{
     Router,
+    body::Body,
     extract::State as AxumState,
+    http::{HeaderMap, Request, StatusCode, header},
+    middleware::{self, Next},
     response::{Json, Sse, sse},
     routing::{get, post},
 };
@@ -11,6 +14,7 @@ use futures::stream::Stream;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::mpsc;
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::agent::agent_loop::run_agent_loop;
 use crate::agent::prompt::{AgentPromptContext, build_system_prompt};
@@ -27,9 +31,31 @@ use crate::workflow::state::FinDir;
 struct AppState {
     provider_registry: Arc<ProviderRegistry>,
     agent_registry: Arc<AgentRegistry>,
+    http_token: Option<String>,
 }
 
 pub async fn run(host: &str, port: u16) -> anyhow::Result<()> {
+    let http_token = std::env::var("FIN_HTTP_TOKEN")
+        .ok()
+        .filter(|v| !v.is_empty());
+    let is_loopback = is_loopback_host(host);
+
+    if !is_loopback && http_token.is_none() {
+        anyhow::bail!(
+            "Refusing to bind HTTP API to non-loopback host '{host}' without auth. \
+Set FIN_HTTP_TOKEN and retry."
+        );
+    }
+
+    if !is_loopback {
+        eprintln!("Warning: HTTP API is exposed on {host}:{port}. FIN_HTTP_TOKEN auth is enabled.");
+    } else if http_token.is_none() {
+        eprintln!(
+            "Warning: HTTP API auth is disabled because FIN_HTTP_TOKEN is not set. \
+This is only safe on loopback."
+        );
+    }
+
     let client = reqwest::Client::new();
     let provider_registry = Arc::new(ProviderRegistry::with_defaults(client));
     let cwd = std::env::current_dir()?;
@@ -38,10 +64,15 @@ pub async fn run(host: &str, port: u16) -> anyhow::Result<()> {
     let state = Arc::new(AppState {
         provider_registry,
         agent_registry,
+        http_token,
     });
 
-    let app = Router::new()
-        .route("/api/health", get(health))
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    let protected_api = Router::new()
         .route("/api/models", get(list_models))
         .route("/api/prompt", post(prompt_handler))
         .route("/api/prompt/stream", post(prompt_stream_handler))
@@ -54,6 +85,15 @@ pub async fn run(host: &str, port: u16) -> anyhow::Result<()> {
         .route("/api/workflow/status", get(workflow_status_handler))
         .route("/api/dispatch/next", post(dispatch_next_handler))
         .route("/api/dispatch/auto", post(dispatch_auto_handler))
+        .route_layer(middleware::from_fn_with_state(
+            Arc::clone(&state),
+            auth_middleware,
+        ));
+
+    let app = Router::new()
+        .route("/api/health", get(health))
+        .merge(protected_api)
+        .layer(cors)
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(format!("{host}:{port}")).await?;
@@ -61,6 +101,40 @@ pub async fn run(host: &str, port: u16) -> anyhow::Result<()> {
 
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+fn is_loopback_host(host: &str) -> bool {
+    matches!(host, "127.0.0.1" | "localhost" | "::1")
+}
+
+async fn auth_middleware(
+    AxumState(state): AxumState<Arc<AppState>>,
+    req: Request<Body>,
+    next: Next,
+) -> Result<axum::response::Response, StatusCode> {
+    let Some(expected) = state.http_token.as_ref() else {
+        return Ok(next.run(req).await);
+    };
+
+    let provided = bearer_token(req.headers()).or_else(|| {
+        req.headers()
+            .get("x-api-key")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.to_string())
+    });
+
+    match provided {
+        Some(token) if token == *expected => Ok(next.run(req).await),
+        _ => Err(StatusCode::UNAUTHORIZED),
+    }
+}
+
+fn bearer_token(headers: &HeaderMap) -> Option<String> {
+    let value = headers.get(header::AUTHORIZATION)?.to_str().ok()?;
+    value
+        .strip_prefix("Bearer ")
+        .or_else(|| value.strip_prefix("bearer "))
+        .map(|s| s.to_string())
 }
 
 async fn health() -> Json<serde_json::Value> {

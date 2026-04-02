@@ -28,7 +28,10 @@ pub async fn cmd_map(cwd: &Path, model_override: Option<&str>) -> anyhow::Result
     }
 
     let model = crate::io::print::pick_model(model_override)?;
-    eprintln!("[Mapping codebase — {} via {}]", model.display_name, model.provider);
+    eprintln!(
+        "[Mapping codebase — {} via {}]",
+        model.display_name, model.provider
+    );
     eprintln!("Exploring {} ...\n", cwd.display());
 
     let client = reqwest::Client::new();
@@ -52,8 +55,11 @@ pub async fn cmd_map(cwd: &Path, model_override: Option<&str>) -> anyhow::Result
         available_agents: None,
         agent_role: Some(prompt_content.clone()),
     };
-    let system_prompt =
-        crate::agent::prompt::build_system_prompt(&tool_registry.schemas(), cwd, Some(&agent_context));
+    let system_prompt = crate::agent::prompt::build_system_prompt(
+        &tool_registry.schemas(),
+        cwd,
+        Some(&agent_context),
+    );
 
     // Remove any stale map so the agent writes fresh
     let map_path = fin_dir.map_path();
@@ -74,7 +80,9 @@ pub async fn cmd_map(cwd: &Path, model_override: Option<&str>) -> anyhow::Result
 
     if map_path.exists() {
         eprintln!("\nMap saved to {}", map_path.display());
-        eprintln!("All agents will now reference this map. Re-run `fin map` after significant changes.");
+        eprintln!(
+            "All agents will now reference this map. Re-run `fin map` after significant changes."
+        );
     } else {
         eprintln!("\nWarning: CODEBASE_MAP.md was not written. Check agent output above.");
     }
@@ -94,7 +102,9 @@ pub async fn cmd_init(cwd: &Path) -> anyhow::Result<()> {
     fin_dir.init()?;
     eprintln!("Initialized .fin/ workflow directory at {}", cwd.display());
     eprintln!("Next steps:");
-    eprintln!("  1. `fin map`              — map the codebase (agents reference this before planning)");
+    eprintln!(
+        "  1. `fin map`              — map the codebase (agents reference this before planning)"
+    );
     eprintln!("  2. `fin blueprint new <name>` — create your first blueprint");
     Ok(())
 }

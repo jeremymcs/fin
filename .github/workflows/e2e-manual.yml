@@ -1,0 +1,69 @@
+# Fin — Manual E2E Blueprint Workflow
+# Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+
+name: E2E Blueprint (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "E2E mode"
+        required: true
+        default: "offline"
+        type: choice
+        options:
+          - offline
+          - online
+          - both
+      online_steps:
+        description: "Max fin next iterations for online mode"
+        required: true
+        default: "20"
+        type: string
+      keep_tmp:
+        description: "Keep temp workspaces in run artifacts"
+        required: true
+        default: true
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  e2e-blueprint:
+    name: Run blueprint e2e (${{ inputs.mode }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Run e2e script
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+          CLOUDSDK_CORE_PROJECT: ${{ secrets.CLOUDSDK_CORE_PROJECT }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_PROFILE: ${{ secrets.AWS_PROFILE }}
+        run: |
+          args=(--mode "${{ inputs.mode }}" --online-steps "${{ inputs.online_steps }}")
+          if [[ "${{ inputs.keep_tmp }}" == "true" ]]; then
+            args+=(--keep-tmp)
+          fi
+          scripts/e2e_blueprint.sh "${args[@]}"
+
+      - name: Upload e2e artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-blueprint-artifacts-${{ github.run_id }}
+          path: .tmp/e2e-blueprint/
+          if-no-files-found: warn

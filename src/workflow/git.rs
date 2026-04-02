@@ -175,7 +175,9 @@ impl WorkflowGit {
     /// Fetch the latest commit: `git log -1 --format='%h %s'`.
     /// Returns (short_hash, subject). Uses parse_git_log_line from widgets.
     pub async fn last_commit(&self) -> anyhow::Result<(String, String)> {
-        let output = self.run_git(&["log", "-1", "--format=%h %s"]).await
+        let output = self
+            .run_git(&["log", "-1", "--format=%h %s"])
+            .await
             .context("failed to read last commit")?;
         Ok(crate::tui::widgets::parse_git_log_line(&output))
     }
@@ -354,7 +356,9 @@ mod tests {
         // Create a file and commit it
         fs::write(dir.path().join("hello.txt"), "world").unwrap();
         git.run_git(&["add", "."]).await.unwrap();
-        git.run_git(&["commit", "-m", "feat: initial commit"]).await.unwrap();
+        git.run_git(&["commit", "-m", "feat: initial commit"])
+            .await
+            .unwrap();
 
         let (hash, msg) = git.last_commit().await.unwrap();
         assert_eq!(hash.len(), 7, "short hash should be 7 chars, got: {hash}");

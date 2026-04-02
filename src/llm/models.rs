@@ -243,18 +243,18 @@ pub fn default_models() -> Vec<ModelConfig> {
 pub fn model_aliases() -> &'static [(&'static str, &'static str)] {
     &[
         // Anthropic
-        ("sonnet",   "claude-sonnet-4-6"),
-        ("opus",     "claude-opus-4-6"),
-        ("haiku",    "claude-haiku-4-5-20251001"),
+        ("sonnet", "claude-sonnet-4-6"),
+        ("opus", "claude-opus-4-6"),
+        ("haiku", "claude-haiku-4-5-20251001"),
         // OpenAI
-        ("gpt",      "gpt-4.1"),
-        ("gpt4",     "gpt-4.1"),
-        ("o3",       "o3"),
-        ("codex",    "o3"),
+        ("gpt", "gpt-4.1"),
+        ("gpt4", "gpt-4.1"),
+        ("o3", "o3"),
+        ("codex", "o3"),
         // Google
-        ("pro",      "gemini-2.5-pro"),
-        ("gemini",   "gemini-2.5-pro"),
-        ("flash",    "gemini-2.5-flash"),
+        ("pro", "gemini-2.5-pro"),
+        ("gemini", "gemini-2.5-pro"),
+        ("flash", "gemini-2.5-flash"),
     ]
 }
 
@@ -287,7 +287,10 @@ pub fn resolve_model(id: &str) -> Option<ModelConfig> {
     let lower = id.to_lowercase();
 
     // Alias lookup (case-insensitive) — direct lookup to avoid recursion
-    if let Some(&(_, full_id)) = model_aliases().iter().find(|(alias, _)| *alias == lower.as_str()) {
+    if let Some(&(_, full_id)) = model_aliases()
+        .iter()
+        .find(|(alias, _)| *alias == lower.as_str())
+    {
         return default_models().into_iter().find(|m| m.id == full_id);
     }
 
@@ -299,10 +302,9 @@ pub fn resolve_model(id: &str) -> Option<ModelConfig> {
     }
 
     // Partial match on id or display name
-    if let Some(m) = models
-        .into_iter()
-        .find(|m| m.id.to_lowercase().contains(&lower) || m.display_name.to_lowercase().contains(&lower))
-    {
+    if let Some(m) = models.into_iter().find(|m| {
+        m.id.to_lowercase().contains(&lower) || m.display_name.to_lowercase().contains(&lower)
+    }) {
         return Some(m);
     }
 
@@ -389,7 +391,10 @@ mod tests {
     fn resolve_aliases() {
         assert_eq!(resolve_model("sonnet").unwrap().id, "claude-sonnet-4-6");
         assert_eq!(resolve_model("opus").unwrap().id, "claude-opus-4-6");
-        assert_eq!(resolve_model("haiku").unwrap().id, "claude-haiku-4-5-20251001");
+        assert_eq!(
+            resolve_model("haiku").unwrap().id,
+            "claude-haiku-4-5-20251001"
+        );
         assert_eq!(resolve_model("gpt").unwrap().id, "gpt-4.1");
         assert_eq!(resolve_model("gpt4").unwrap().id, "gpt-4.1");
         assert_eq!(resolve_model("o3").unwrap().id, "o3");

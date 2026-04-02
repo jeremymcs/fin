@@ -138,6 +138,8 @@ System prompt here...
 - Unit tests go in `#[cfg(test)] mod tests` at the bottom of each source file
 - Integration tests go in `tests/integration_test.rs`
 - Run `cargo test` to run all tests
+- Run `scripts/e2e_blueprint.sh --mode offline` for deterministic end-to-end blueprint workflow validation
+- Run `scripts/e2e_blueprint.sh --mode online` for live provider-backed workflow validation (requires API credentials)
 
 ## Commit Messages
 

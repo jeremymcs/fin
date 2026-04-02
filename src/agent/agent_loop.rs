@@ -107,10 +107,7 @@ pub async fn run_agent_loop(
                                 "Check your API key."
                             };
                             io.emit(AgentEvent::TextDelta {
-                                text: format!(
-                                    "\n[Provider '{}': {hint}]\n",
-                                    state.model.provider
-                                ),
+                                text: format!("\n[Provider '{}': {hint}]\n", state.model.provider),
                             })
                             .await?;
                             return Err(e);
@@ -136,7 +133,9 @@ pub async fn run_agent_loop(
                                     delay.as_secs(),
                                     if err_str.contains("429") {
                                         "rate limited"
-                                    } else if err_str.contains("503") || err_str.contains("overloaded") {
+                                    } else if err_str.contains("503")
+                                        || err_str.contains("overloaded")
+                                    {
                                         "provider overloaded"
                                     } else {
                                         "transient error"

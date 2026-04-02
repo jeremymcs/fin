@@ -139,7 +139,9 @@ impl LlmProvider for OpenAIProvider {
         let auth = crate::config::auth::AuthStore::default();
         let api_key = auth
             .get_api_key("openai")
-            .ok_or_else(|| anyhow::anyhow!("OPENAI_API_KEY not set"))?;
+            .ok_or_else(|| anyhow::anyhow!(
+                "OpenAI credentials not set (expected OPENAI_ACCESS_TOKEN, OPENAI_BEARER_TOKEN, or OPENAI_API_KEY)"
+            ))?;
 
         let messages = Self::convert_messages(&context.system_prompt, &context.messages);
 

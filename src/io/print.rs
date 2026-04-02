@@ -36,7 +36,7 @@ pub async fn run(prompt: &str, model_id: Option<&str>) -> anyhow::Result<()> {
     if auth.get_api_key(&model.provider).is_none() {
         let env_hint = match model.provider.as_str() {
             "anthropic" => "ANTHROPIC_API_KEY",
-            "openai" => "OPENAI_API_KEY",
+            "openai" => "OPENAI_ACCESS_TOKEN, OPENAI_BEARER_TOKEN, or OPENAI_API_KEY",
             "google" => "GOOGLE_API_KEY or GEMINI_API_KEY",
             _ => "API key",
         };
@@ -353,7 +353,7 @@ pub fn pick_default_model() -> anyhow::Result<crate::llm::models::ModelConfig> {
 
     anyhow::bail!(
         "No API key found. Set one of:\n  \
-         ANTHROPIC_API_KEY, OPENAI_API_KEY, GOOGLE_API_KEY\n  \
+         ANTHROPIC_API_KEY, OPENAI_ACCESS_TOKEN (or OPENAI_API_KEY), GOOGLE_API_KEY\n  \
          GOOGLE_CLOUD_PROJECT (Vertex AI), AWS_ACCESS_KEY_ID (Bedrock)\n  \
          Or run `fin config` to store a key."
     )

@@ -60,6 +60,8 @@ pub async fn run_wizard() -> anyhow::Result<()> {
             println!("\n  Skipped. Set an API key later via environment variable:");
             println!("    export ANTHROPIC_API_KEY=sk-ant-...");
             println!("    export OPENAI_API_KEY=sk-...");
+            println!("    # or OAuth-style bearer token:");
+            println!("    export OPENAI_ACCESS_TOKEN=<token>");
             println!("    export GOOGLE_API_KEY=...");
             println!("  Or start Ollama locally: ollama serve");
         }
@@ -108,7 +110,10 @@ async fn configure_ollama(auth: &mut AuthStore) -> anyhow::Result<()> {
     let available = crate::llm::ollama::OllamaProvider::is_available(&client).await;
 
     if available {
-        println!("\n  ✓ Ollama detected at {}", std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "localhost:11434".into()));
+        println!(
+            "\n  ✓ Ollama detected at {}",
+            std::env::var("OLLAMA_HOST").unwrap_or_else(|_| "localhost:11434".into())
+        );
 
         let models = crate::llm::ollama::OllamaProvider::discover_models(&client).await;
         if models.is_empty() {
@@ -154,7 +159,15 @@ async fn configure_ollama(auth: &mut AuthStore) -> anyhow::Result<()> {
 
 /// Set an API key for a specific provider (hidden input).
 pub async fn cmd_set_key(provider: &str) -> anyhow::Result<()> {
-    let known = ["anthropic", "openai", "google", "mistral", "brave", "tavily", "ollama"];
+    let known = [
+        "anthropic",
+        "openai",
+        "google",
+        "mistral",
+        "brave",
+        "tavily",
+        "ollama",
+    ];
     if !known.contains(&provider) {
         println!(
             "  Unknown provider: {provider}\n  Supported: {}",
@@ -196,11 +209,15 @@ pub async fn cmd_list_keys() -> anyhow::Result<()> {
     let mut found = false;
     for (name, env_var) in &all_providers {
         if let Some(masked) = auth.get_masked_key(name) {
-            let source = if !env_var.is_empty() && std::env::var(env_var).is_ok() {
-                "env"
-            } else {
-                "stored"
+            let env_present = match *name {
+                "openai" => {
+                    std::env::var("OPENAI_ACCESS_TOKEN").is_ok()
+                        || std::env::var("OPENAI_BEARER_TOKEN").is_ok()
+                        || std::env::var("OPENAI_API_KEY").is_ok()
+                }
+                _ => !env_var.is_empty() && std::env::var(env_var).is_ok(),
             };
+            let source = if env_present { "env" } else { "stored" };
             println!("  {name:<12} {masked:<20} ({source})");
             found = true;
         }
@@ -208,7 +225,11 @@ pub async fn cmd_list_keys() -> anyhow::Result<()> {
 
     // Check Ollama separately (doesn't need an API key)
     if auth.get_masked_key("ollama").is_some() {
-        println!("  {:<12} {:<20} (stored)", "ollama", auth.get_masked_key("ollama").unwrap());
+        println!(
+            "  {:<12} {:<20} (stored)",
+            "ollama",
+            auth.get_masked_key("ollama").unwrap()
+        );
         found = true;
     } else if std::env::var("OLLAMA_HOST").is_ok() {
         println!("  {:<12} {:<20} (env)", "ollama", "OLLAMA_HOST set");
@@ -242,7 +263,7 @@ pub async fn cmd_remove_key(provider: &str) -> anyhow::Result<()> {
     // Warn if env var is still set
     let env_key = match provider {
         "anthropic" => Some("ANTHROPIC_API_KEY"),
-        "openai" => Some("OPENAI_API_KEY"),
+        "openai" => Some("OPENAI_ACCESS_TOKEN or OPENAI_API_KEY"),
         "google" => Some("GOOGLE_API_KEY"),
         "mistral" => Some("MISTRAL_API_KEY"),
         _ => None,

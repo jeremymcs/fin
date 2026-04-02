@@ -276,9 +276,7 @@ impl Cli {
                     Some(ConfigAction::SetKey { provider }) => {
                         crate::onboarding::cmd_set_key(&provider).await
                     }
-                    Some(ConfigAction::ListKeys) => {
-                        crate::onboarding::cmd_list_keys().await
-                    }
+                    Some(ConfigAction::ListKeys) => crate::onboarding::cmd_list_keys().await,
                     Some(ConfigAction::RemoveKey { provider }) => {
                         crate::onboarding::cmd_remove_key(&provider).await
                     }
