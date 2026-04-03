@@ -70,7 +70,8 @@ if [[ "$MODE" != "offline" && "$MODE" != "online" && "$MODE" != "both" ]]; then
 fi
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ARTIFACT_ROOT="$REPO_ROOT/.tmp/e2e-blueprint"
+DEFAULT_ARTIFACT_ROOT="${TMPDIR:-/tmp}/fin-e2e-artifacts"
+ARTIFACT_ROOT="${FIN_E2E_ARTIFACT_ROOT:-$DEFAULT_ARTIFACT_ROOT}"
 RUN_ID="$(date +%Y%m%d-%H%M%S)"
 RUN_DIR="$ARTIFACT_ROOT/$RUN_ID"
 mkdir -p "$RUN_DIR"

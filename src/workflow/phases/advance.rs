@@ -1,5 +1,4 @@
-// Fin — Advance Stage Runner
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Advance Stage Runner
 
 use async_trait::async_trait;
 use tokio_util::sync::CancellationToken;

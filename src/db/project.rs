@@ -1,5 +1,4 @@
-// Fin — Project Database (SQLite)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Project Database (SQLite)
 
 use rusqlite::Connection;
 use std::path::Path;

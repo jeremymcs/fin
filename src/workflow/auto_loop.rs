@@ -1,5 +1,4 @@
-// Fin — Auto Loop (Dispatch → Run Unit → Finalize → Repeat)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Auto Loop (Dispatch → Run Unit → Finalize → Repeat)
 //
 // Same loop for both modes:
 //   Auto:   runs to completion (all tasks in section/blueprint)

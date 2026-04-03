@@ -1,5 +1,4 @@
-// Fin — Path Resolution (XDG-Compliant)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Path Resolution (XDG-Compliant)
 
 use std::path::PathBuf;
 

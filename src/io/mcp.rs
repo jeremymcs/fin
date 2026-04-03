@@ -1,5 +1,4 @@
-// Fin — MCP Server (Model Context Protocol — JSON-RPC 2.0 over stdio)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + MCP Server (Model Context Protocol — JSON-RPC 2.0 over stdio)
 
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};

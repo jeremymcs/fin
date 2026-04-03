@@ -1,5 +1,4 @@
-// Fin — Session Management CLI Handlers
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Session Management CLI Handlers
 
 use crate::cli::SessionAction;
 use crate::config::paths::FinPaths;

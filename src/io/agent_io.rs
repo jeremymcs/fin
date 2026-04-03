@@ -1,5 +1,4 @@
-// Fin — Agent I/O Trait (Transport-Agnostic)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Agent I/O Trait (Transport-Agnostic)
 
 use crate::llm::types::{Message, Usage};
 use async_trait::async_trait;

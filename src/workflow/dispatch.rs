@@ -1,5 +1,4 @@
-// Fin — Dispatch Table (State → Next Unit Resolution)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Dispatch Table (State → Next Unit Resolution)
 
 use super::Stage;
 use super::state::FinDir;

@@ -1,5 +1,4 @@
-// Fin — SSE Stream Parsing Utilities
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + SSE Stream Parsing Utilities
 
 /// Parse a Server-Sent Events (SSE) line into event name and data.
 ///

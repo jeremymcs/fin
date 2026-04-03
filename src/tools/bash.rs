@@ -1,5 +1,4 @@
-// Fin — Bash Tool (Shell Command Execution)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Bash Tool (Shell Command Execution)
 
 use async_trait::async_trait;
 use serde_json::json;

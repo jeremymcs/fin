@@ -1,5 +1,4 @@
-// Fin — Skills System (Runtime Markdown Loading)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Skills System (Runtime Markdown Loading)
 
 use std::path::Path;
 

@@ -1,5 +1,4 @@
-// Fin — Markdown Template Generators
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Markdown Template Generators
 
 /// Initial STATUS.md content for a fresh .fin/ directory.
 pub fn initial_status() -> String {

@@ -1,5 +1,4 @@
-// Fin — Worktree Management
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Worktree Management
 
 use crate::cli::WorktreeAction;
 use std::path::{Path, PathBuf};

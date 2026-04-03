@@ -1,5 +1,4 @@
-// Fin — Core Agent Loop
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Core Agent Loop
 
 use anyhow::Result;
 use tokio_util::sync::CancellationToken;

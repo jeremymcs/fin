@@ -1,5 +1,4 @@
-// Fin — Built-in Tool Implementations
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Built-in Tool Implementations
 
 pub mod bash;
 pub mod edit;

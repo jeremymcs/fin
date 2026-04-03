@@ -1,5 +1,4 @@
-// Fin — Workflow Database CRUD
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Workflow Database CRUD
 
 use crate::db::project::ProjectDb;
 use rusqlite::params;

@@ -1,5 +1,4 @@
-// Fin — Sub-Agent Output Collector IO
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Sub-Agent Output Collector IO
 
 use async_trait::async_trait;
 use tokio::sync::mpsc;

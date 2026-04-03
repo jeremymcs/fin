@@ -1,5 +1,4 @@
-// Fin — Preferences
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Preferences
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;

@@ -1,5 +1,4 @@
-// Fin — Read Tool (File Reading)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Read Tool (File Reading)
 
 use async_trait::async_trait;
 use serde_json::json;

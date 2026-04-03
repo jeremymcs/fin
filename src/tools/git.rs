@@ -1,5 +1,4 @@
-// Fin — Git Tool (Version Control Operations)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Git Tool (Version Control Operations)
 
 use async_trait::async_trait;
 use serde_json::json;

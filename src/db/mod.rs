@@ -1,5 +1,4 @@
-// Fin — Database Layer (SQLite)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Database Layer (SQLite)
 
 pub mod planning;
 pub mod project;

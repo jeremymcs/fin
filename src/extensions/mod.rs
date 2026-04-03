@@ -1,5 +1,4 @@
-// Fin — Extension System
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Extension System
 
 pub mod api;
 pub mod builtin;

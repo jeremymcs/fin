@@ -1,6 +1,6 @@
-// Fin — System Prompt Builder
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + System Prompt Builder
 
+use crate::agents::defaults::default_fin_system_prompt;
 use crate::llm::types::ToolSchema;
 use crate::skills;
 use std::path::Path;
@@ -27,10 +27,12 @@ pub fn build_system_prompt(
             prompt.push_str(role);
             prompt.push_str("\n\n");
         } else {
-            prompt.push_str("You are Fin, an AI coding agent. You help users with software engineering tasks by reading files, writing code, running commands, and managing git repositories.\n\n");
+            prompt.push_str(default_fin_system_prompt());
+            prompt.push_str("\n\n");
         }
     } else {
-        prompt.push_str("You are Fin, an AI coding agent. You help users with software engineering tasks by reading files, writing code, running commands, and managing git repositories.\n\n");
+        prompt.push_str(default_fin_system_prompt());
+        prompt.push_str("\n\n");
     }
 
     // Guidelines
@@ -144,7 +146,6 @@ pub fn build_system_prompt(
 
     prompt
 }
-
 /// Load context files: CLAUDE.md, CONTRIBUTING.md, .fin/ state, etc.
 fn load_context_files(cwd: &Path) -> Option<String> {
     let mut context = String::new();
@@ -286,7 +287,7 @@ mod tests {
     fn test_build_system_prompt_contains_identity() {
         let prompt = build_system_prompt(&[], Path::new("/tmp"), None);
         assert!(prompt.contains("Fin"));
-        assert!(prompt.contains("AI coding agent"));
+        assert!(prompt.contains("My name is **FIN**."));
     }
 
     #[test]

@@ -1,5 +1,4 @@
-// Fin — Agent Registry (Discovery & Lookup)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Agent Registry (Discovery & Lookup)
 
 use std::path::Path;
 
@@ -160,6 +159,9 @@ impl AgentRegistry {
         );
 
         for agent in &self.agents {
+            if agent.id == "fin" {
+                continue;
+            }
             let tools_short = if agent.tools.len() > 4 {
                 format!(
                     "{}, ... ({} total)",
@@ -351,6 +353,40 @@ Build."#;
         assert!(registry.get("fin-builder").is_some());
         let builder = registry.get("fin-builder").unwrap();
         assert_eq!(builder.roles, vec!["builder"]);
+    }
+
+    #[test]
+    fn test_prompt_summary_excludes_root_fin_agent() {
+        let dir = tempfile::tempdir().unwrap();
+
+        let fin_root = r#"---
+name: fin
+description: "Primary persona"
+color: cyan
+tools: Read
+model: sonnet
+---
+
+You are Fin."#;
+
+        let fin_builder = r#"---
+name: fin-builder
+description: "Builder"
+color: yellow
+tools: Read, Write
+model: sonnet
+roles: builder
+---
+
+Build."#;
+
+        std::fs::write(dir.path().join("fin.md"), fin_root).unwrap();
+        std::fs::write(dir.path().join("fin-builder.md"), fin_builder).unwrap();
+
+        let registry = AgentRegistry::load_from_dir(dir.path());
+        let summary = registry.prompt_summary();
+        assert!(!summary.contains("`fin`"));
+        assert!(summary.contains("`fin-builder`"));
     }
 
     #[test]

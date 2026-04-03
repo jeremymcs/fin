@@ -1,5 +1,4 @@
-// Fin — Web Search Extension
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Web Search Extension
 
 use async_trait::async_trait;
 use serde_json::json;

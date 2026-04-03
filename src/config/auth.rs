@@ -1,5 +1,4 @@
-// Fin — Auth Storage (API Keys — Keyring + File Fallback)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Auth Storage (API Keys — Keyring + File Fallback)
 
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -16,6 +15,17 @@ pub struct AuthStore {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ProviderAuth {
     ApiKey { key: String },
+    BearerToken { token: String },
+    GoogleOAuth {
+        access_token: String,
+        refresh_token: Option<String>,
+        expires_at: Option<i64>,
+        client_id: String,
+        client_secret: String,
+        token_uri: String,
+        project_id: Option<String>,
+        scopes: Vec<String>,
+    },
 }
 
 impl Default for AuthStore {
@@ -97,6 +107,8 @@ impl AuthStore {
     fn get_stored_key(&self, provider: &str) -> Option<String> {
         match self.providers.get(provider)? {
             ProviderAuth::ApiKey { key } => Some(key.clone()),
+            ProviderAuth::BearerToken { token } => Some(token.clone()),
+            ProviderAuth::GoogleOAuth { access_token, .. } => Some(access_token.clone()),
         }
     }
 
@@ -120,6 +132,61 @@ impl AuthStore {
         // Always store in the file-backed map as fallback
         self.providers
             .insert(provider.to_string(), ProviderAuth::ApiKey { key });
+    }
+
+    /// Store a bearer token for a provider.
+    pub fn set_bearer_token(&mut self, provider: &str, token: String) {
+        if let Ok(entry) = keyring::Entry::new(KEYRING_SERVICE, provider) {
+            if entry.set_password(&token).is_ok() {
+                tracing::debug!("Stored {provider} bearer token in OS keyring");
+            } else {
+                tracing::debug!("Keyring unavailable for {provider}, using file storage");
+            }
+        }
+        self.providers
+            .insert(provider.to_string(), ProviderAuth::BearerToken { token });
+    }
+
+    /// Store Google OAuth credentials.
+    pub fn set_google_oauth(&mut self, creds: crate::config::oauth::GoogleOAuthCredentials) {
+        self.providers.insert(
+            "google".to_string(),
+            ProviderAuth::GoogleOAuth {
+                access_token: creds.access_token,
+                refresh_token: creds.refresh_token,
+                expires_at: creds.expires_at,
+                client_id: creds.client_id,
+                client_secret: creds.client_secret,
+                token_uri: creds.token_uri,
+                project_id: creds.project_id,
+                scopes: creds.scopes,
+            },
+        );
+    }
+
+    pub fn get_google_oauth(&self) -> Option<crate::config::oauth::GoogleOAuthCredentials> {
+        match self.providers.get("google")? {
+            ProviderAuth::GoogleOAuth {
+                access_token,
+                refresh_token,
+                expires_at,
+                client_id,
+                client_secret,
+                token_uri,
+                project_id,
+                scopes,
+            } => Some(crate::config::oauth::GoogleOAuthCredentials {
+                access_token: access_token.clone(),
+                refresh_token: refresh_token.clone(),
+                expires_at: *expires_at,
+                client_id: client_id.clone(),
+                client_secret: client_secret.clone(),
+                token_uri: token_uri.clone(),
+                project_id: project_id.clone(),
+                scopes: scopes.clone(),
+            }),
+            _ => None,
+        }
     }
 
     /// Remove an API key from both keyring and stored file.

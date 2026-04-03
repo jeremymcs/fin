@@ -1,5 +1,4 @@
-// Fin — TUI IO Adapter (bridges agent events to TUI)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + TUI IO Adapter (bridges agent events to TUI)
 
 use async_trait::async_trait;
 use tokio::sync::mpsc;

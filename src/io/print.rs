@@ -1,5 +1,4 @@
-// Fin — Print Mode (Single-Shot Agent Execution)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Print Mode (Single-Shot Agent Execution)
 
 use std::sync::Arc;
 
@@ -37,7 +36,7 @@ pub async fn run(prompt: &str, model_id: Option<&str>) -> anyhow::Result<()> {
         let env_hint = match model.provider.as_str() {
             "anthropic" => "ANTHROPIC_API_KEY",
             "openai" => "OPENAI_ACCESS_TOKEN, OPENAI_BEARER_TOKEN, or OPENAI_API_KEY",
-            "google" => "GOOGLE_API_KEY or GEMINI_API_KEY",
+            "google" => "GOOGLE_API_KEY, GEMINI_API_KEY, or /login google in the TUI",
             _ => "API key",
         };
         anyhow::bail!(
@@ -355,6 +354,6 @@ pub fn pick_default_model() -> anyhow::Result<crate::llm::models::ModelConfig> {
         "No API key found. Set one of:\n  \
          ANTHROPIC_API_KEY, OPENAI_ACCESS_TOKEN (or OPENAI_API_KEY), GOOGLE_API_KEY\n  \
          GOOGLE_CLOUD_PROJECT (Vertex AI), AWS_ACCESS_KEY_ID (Bedrock)\n  \
-         Or run `fin config` to store a key."
+         Or run `fin config` / `/login` in the TUI to store credentials."
     )
 }

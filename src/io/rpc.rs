@@ -1,5 +1,4 @@
-// Fin — RPC Mode (Persistent JSONL Protocol on stdin/stdout)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + RPC Mode (Persistent JSONL Protocol on stdin/stdout)
 //
 // Protocol: read JSONL commands from stdin, stream JSONL events to stdout.
 // Unlike headless mode (single prompt), RPC keeps the session alive for

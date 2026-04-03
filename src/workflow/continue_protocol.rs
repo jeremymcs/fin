@@ -1,5 +1,4 @@
-// Fin — Continue/Resume Protocol
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Continue/Resume Protocol
 
 use serde::{Deserialize, Serialize};
 

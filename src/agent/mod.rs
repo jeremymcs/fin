@@ -1,5 +1,4 @@
-// Fin — Agent Core Module
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Agent Core Module
 
 pub mod agent_loop;
 pub mod compaction;

@@ -1,5 +1,4 @@
-// Fin — Write Tool (File Creation/Overwrite)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Write Tool (File Creation/Overwrite)
 
 use async_trait::async_trait;
 use serde_json::json;

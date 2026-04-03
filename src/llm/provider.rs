@@ -1,5 +1,4 @@
-// Fin — LLM Provider Trait
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + LLM Provider Trait
 
 use async_trait::async_trait;
 use futures::Stream;

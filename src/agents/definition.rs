@@ -1,5 +1,4 @@
-// Fin — Agent Definition Parser (Claude Code agent format)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Agent Definition Parser (Claude Code agent format)
 
 use serde::Deserialize;
 use std::path::{Path, PathBuf};

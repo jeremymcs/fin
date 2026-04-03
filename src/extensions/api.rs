@@ -1,5 +1,4 @@
-// Fin — Extension API Trait
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Extension API Trait
 
 use crate::tools::AgentTool;
 

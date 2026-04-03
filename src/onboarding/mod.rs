@@ -1,5 +1,4 @@
-// Fin — Onboarding Wizard
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Onboarding Wizard
 
 use crate::config::auth::AuthStore;
 use crate::config::paths::FinPaths;
@@ -215,9 +214,16 @@ pub async fn cmd_list_keys() -> anyhow::Result<()> {
                         || std::env::var("OPENAI_BEARER_TOKEN").is_ok()
                         || std::env::var("OPENAI_API_KEY").is_ok()
                 }
+                "google" => std::env::var("GOOGLE_API_KEY").is_ok(),
                 _ => !env_var.is_empty() && std::env::var(env_var).is_ok(),
             };
-            let source = if env_present { "env" } else { "stored" };
+            let source = if *name == "google" && auth.get_google_oauth().is_some() {
+                "oauth"
+            } else if env_present {
+                "env"
+            } else {
+                "stored"
+            };
             println!("  {name:<12} {masked:<20} ({source})");
             found = true;
         }

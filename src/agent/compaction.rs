@@ -1,5 +1,4 @@
-// Fin — Context Window Token Estimation
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Context Window Token Estimation
 
 use crate::llm::types::{Content, Message};
 

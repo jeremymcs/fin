@@ -1,5 +1,4 @@
-// Fin — HTTP API Server (axum + SSE)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + HTTP API Server (axum + SSE)
 
 use axum::{
     Router,

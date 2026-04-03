@@ -1,5 +1,4 @@
-// Fin — Grep Tool (Native ripgrep engine — no subprocess)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Grep Tool (Native ripgrep engine — no subprocess)
 
 use async_trait::async_trait;
 use serde_json::json;

@@ -1,5 +1,4 @@
-// Fin — Edit Tool (String Replacement)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Edit Tool (String Replacement)
 
 use async_trait::async_trait;
 use serde_json::json;

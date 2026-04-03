@@ -1,5 +1,4 @@
-// Fin — TUI Application Loop
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + TUI Application Loop
 
 use crossterm::{
     ExecutableCommand,
@@ -9,7 +8,7 @@ use crossterm::{
 };
 use ratatui::prelude::*;
 use std::collections::VecDeque;
-use std::io::stdout;
+use std::io::{Write, stdin, stdout};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -108,11 +107,7 @@ const TOAST_TTL: Duration = Duration::from_secs(5);
 const TOAST_MAX: usize = 2;
 const TOAST_WIDTH: u16 = 40;
 const TOAST_HEIGHT: u16 = 3;
-const LOGIN_PROVIDERS: &[(&str, &str)] = &[
-    ("openai", "https://platform.openai.com/"),
-    ("anthropic", "https://console.anthropic.com/"),
-    ("google", "https://aistudio.google.com/"),
-];
+const LOGIN_PROVIDERS: &[&str] = &["openai", "anthropic", "google"];
 
 fn push_toast(toasts: &mut VecDeque<(String, Instant, ToastKind)>, msg: String, kind: ToastKind) {
     if toasts.len() >= TOAST_MAX {
@@ -193,6 +188,7 @@ async fn run_tui_loop(
     no_session: bool,
 ) -> anyhow::Result<()> {
     let mut input_text = String::new();
+    let mut force_full_redraw = false;
     let mut output_lines: Vec<OutputLine> = vec![
         OutputLine::system(format!(
             "fin v{} — {}",
@@ -329,6 +325,11 @@ async fn run_tui_loop(
     };
 
     loop {
+        if force_full_redraw {
+            terminal.clear()?;
+            force_full_redraw = false;
+        }
+
         // Draw UI
         terminal.draw(|f| {
             let wf_active = workflow_state.active;
@@ -429,8 +430,8 @@ async fn run_tui_loop(
                 let items: Vec<ratatui::text::Line> = LOGIN_PROVIDERS
                     .iter()
                     .enumerate()
-                    .map(|(i, (provider, url))| {
-                        let label = format!(" {provider:<10} {url}");
+                    .map(|(i, provider)| {
+                        let label = format!(" {provider}");
                         if i == login_picker_index {
                             ratatui::text::Line::from(label).style(
                                 ratatui::style::Style::default()
@@ -475,6 +476,7 @@ async fn run_tui_loop(
                     Line::raw("  Ctrl+C      Quit"),
                     Line::raw("  ?           This help overlay"),
                     Line::raw("  /model      Switch model (interactive picker)"),
+                    Line::raw("  /login      Store provider credentials"),
                     Line::raw("  Esc         Close overlay / cancel"),
                     Line::raw("  ↑/↓         Scroll output history"),
                     Line::raw("  Tab         Autocomplete slash commands"),
@@ -854,25 +856,23 @@ async fn run_tui_loop(
                                 }
                             }
                             KeyCode::Enter => {
-                                let (provider, url) = LOGIN_PROVIDERS[login_picker_index];
-                                match open_url_in_browser(url) {
-                                    Ok(()) => {
-                                        output_lines.push(OutputLine::system(format!(
-                                            "Opened {provider} login in browser: {url}"
-                                        )));
+                                let provider = LOGIN_PROVIDERS[login_picker_index];
+                                match prompt_and_store_provider_credential(provider, "") {
+                                    Ok(message) => {
+                                        output_lines.push(OutputLine::system(message));
                                         push_toast(
                                             &mut toasts,
-                                            format!("Opened {provider} login"),
-                                            ToastKind::Info,
+                                            format!("Saved {provider} credentials"),
+                                            ToastKind::Success,
                                         );
                                     }
                                     Err(e) => {
                                         output_lines.push(OutputLine::error(format!(
-                                            "Could not open browser ({e}). Open manually: {url}"
+                                            "Could not save {provider} credentials: {e}"
                                         )));
                                         push_toast(
                                             &mut toasts,
-                                            format!("Login open failed: {provider}"),
+                                            format!("Save {provider} credentials failed"),
                                             ToastKind::Error,
                                         );
                                     }
@@ -885,6 +885,7 @@ async fn run_tui_loop(
                                     scroll_pinned,
                                     workflow_state.active,
                                 );
+                                force_full_redraw = true;
                                 login_picker_active = false;
                             }
                             KeyCode::Esc | KeyCode::Char('q') => {
@@ -1217,6 +1218,9 @@ async fn run_tui_loop(
                                         scroll_pinned,
                                         workflow_state.active,
                                     );
+                                    if cmd == "login" {
+                                        force_full_redraw = true;
+                                    }
                                     continue;
                                 }
 
@@ -2449,7 +2453,15 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
                 let mut found = false;
                 for (name, env_var) in &providers {
                     if let Some(masked) = auth.get_masked_key(name) {
-                        let source = if !env_var.is_empty() && std::env::var(env_var).is_ok() {
+                        let source = if *name == "openai"
+                            && (std::env::var("OPENAI_ACCESS_TOKEN").is_ok()
+                                || std::env::var("OPENAI_BEARER_TOKEN").is_ok()
+                                || std::env::var("OPENAI_API_KEY").is_ok())
+                        {
+                            "env"
+                        } else if *name == "google" && auth.get_google_oauth().is_some() {
+                            "oauth"
+                        } else if !env_var.is_empty() && std::env::var(env_var).is_ok() {
                             "env"
                         } else {
                             "stored"
@@ -2514,22 +2526,22 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
             }
         }
         "login" => {
-            let provider = _args.trim().to_lowercase();
+            let mut parts = _args.trim().splitn(2, char::is_whitespace);
+            let provider = parts.next().unwrap_or("").trim().to_lowercase();
+            let login_arg = parts.next().unwrap_or("").trim();
             if provider.is_empty() {
-                return Ok("Usage: /login <provider>\nSupported: openai, anthropic, google".into());
+                return Ok(
+                    "Usage: /login <provider> [arg]\nSupported: openai, anthropic, google".into(),
+                );
             }
-            let Some(url) = provider_login_url(&provider) else {
+            if !LOGIN_PROVIDERS.contains(&provider.as_str()) {
                 return Ok(format!(
                     "Unknown provider '{provider}'. Supported: openai, anthropic, google"
                 ));
-            };
-
-            match open_url_in_browser(url) {
-                Ok(()) => Ok(format!("Opened {provider} login in browser: {url}")),
-                Err(e) => Ok(format!(
-                    "Could not open browser automatically ({e}).\nOpen manually: {url}"
-                )),
             }
+
+            let message = prompt_and_store_provider_credential(&provider, login_arg)?;
+            Ok(message)
         }
         "sessions" => {
             let paths = crate::config::paths::FinPaths::resolve()?;
@@ -2588,7 +2600,11 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
                  /config [list-keys]                      — Show configured API keys\n\
                  /config set-key <provider> <key>         — Save an API key\n\
                  /config remove-key <provider>            — Remove an API key\n\
-                 /login <provider>                        — Open provider login/oauth page\n\
+                 /login                                   — Pick provider and authenticate\n\
+                 /login openai                            — Import OpenAI bearer token or API key\n\
+                 /login anthropic                         — Store Anthropic API key\n\
+                 /login google [client_secret.json]       — Run Google desktop OAuth flow\n\
+                 Providers: openai, anthropic, google\n\
                  /sessions                                — List recent sessions\n\
                  /worktree [list]                         — List worktrees\n\
                  /worktree create|merge|remove <name>     — Manage worktrees\n\
@@ -2612,31 +2628,97 @@ fn handle_slash_command(input: &str, cwd: &std::path::Path) -> anyhow::Result<St
     }
 }
 
-fn provider_login_url(provider: &str) -> Option<&'static str> {
-    match provider {
-        "openai" => Some("https://platform.openai.com/"),
-        "anthropic" => Some("https://console.anthropic.com/"),
-        "google" | "gemini" => Some("https://aistudio.google.com/"),
-        _ => None,
+fn prompt_and_store_provider_credential(provider: &str, arg: &str) -> anyhow::Result<String> {
+    if !LOGIN_PROVIDERS.contains(&provider) {
+        anyhow::bail!("unsupported provider: {provider}");
     }
+
+    disable_raw_mode()?;
+    stdout().execute(SetCursorStyle::DefaultUserShape)?;
+    stdout().execute(LeaveAlternateScreen)?;
+
+    let prompt_result = (|| -> anyhow::Result<String> {
+        let paths = crate::config::paths::FinPaths::resolve()?;
+        let mut auth =
+            crate::config::auth::AuthStore::load(&paths.auth_file).unwrap_or_default();
+
+        let message = match provider {
+            "openai" => {
+                println!();
+                println!("Paste an OpenAI bearer token or API key.");
+                println!(
+                    "This app can store and use the token, but it does not perform a browser OAuth callback flow."
+                );
+                println!();
+
+                let secret = rpassword::prompt_password("OpenAI bearer token or API key: ")?;
+                if secret.trim().is_empty() {
+                    anyhow::bail!("no credential entered");
+                }
+                auth.set_bearer_token(provider, secret.trim().to_string());
+                auth.save(&paths.auth_file)?;
+                "Saved openai bearer token.".to_string()
+            }
+            "anthropic" => {
+                println!();
+                let secret = rpassword::prompt_password("Anthropic API key: ")?;
+                if secret.trim().is_empty() {
+                    anyhow::bail!("no credential entered");
+                }
+                auth.set_api_key(provider, secret.trim().to_string());
+                auth.save(&paths.auth_file)?;
+                "Saved anthropic API key.".to_string()
+            }
+            "google" => {
+                println!();
+                println!("Google OAuth requires a desktop app OAuth client JSON from Google Cloud.");
+                println!(
+                    "Create it under Google Auth Platform > Clients > Desktop app, then download the JSON."
+                );
+                println!();
+
+                let path = if arg.is_empty() {
+                    prompt_visible("Path to Google client_secret.json")?
+                } else {
+                    arg.to_string()
+                };
+                if path.trim().is_empty() {
+                    anyhow::bail!("no Google client_secret.json path provided");
+                }
+
+                let result = crate::config::oauth::run_google_oauth_flow(std::path::Path::new(
+                    path.trim(),
+                ))?;
+                auth.set_google_oauth(result.credentials);
+                auth.save(&paths.auth_file)?;
+                format!(
+                    "Saved Google OAuth session from {}.",
+                    result.client_secret_path.display()
+                )
+            }
+            _ => anyhow::bail!("unsupported provider: {provider}"),
+        };
+
+        Ok(message)
+    })();
+
+    let restore_result = (|| -> anyhow::Result<()> {
+        enable_raw_mode()?;
+        stdout().execute(EnterAlternateScreen)?;
+        stdout().execute(SetCursorStyle::BlinkingBar)?;
+        Ok(())
+    })();
+
+    restore_result?;
+    prompt_result
 }
 
-fn open_url_in_browser(url: &str) -> anyhow::Result<()> {
-    let status = if cfg!(target_os = "macos") {
-        std::process::Command::new("open").arg(url).status()?
-    } else if cfg!(target_os = "windows") {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", url])
-            .status()?
-    } else {
-        std::process::Command::new("xdg-open").arg(url).status()?
-    };
-
-    if status.success() {
-        Ok(())
-    } else {
-        anyhow::bail!("browser opener exited with status: {status}");
-    }
+fn prompt_visible(label: &str) -> anyhow::Result<String> {
+    print!("{label}: ");
+    std::io::stdout().flush()?;
+    let mut value = String::new();
+    stdin().read_line(&mut value)?;
+    Ok(value.trim().to_string())
 }
 
 #[cfg(test)]
@@ -2702,32 +2784,6 @@ mod tests {
             toasts.pop_front();
         }
         assert_eq!(toasts.len(), 0);
-    }
-
-    #[test]
-    fn provider_login_url_known() {
-        assert_eq!(
-            provider_login_url("openai"),
-            Some("https://platform.openai.com/")
-        );
-        assert_eq!(
-            provider_login_url("anthropic"),
-            Some("https://console.anthropic.com/")
-        );
-        assert_eq!(
-            provider_login_url("google"),
-            Some("https://aistudio.google.com/")
-        );
-        assert_eq!(
-            provider_login_url("gemini"),
-            Some("https://aistudio.google.com/")
-        );
-    }
-
-    #[test]
-    fn provider_login_url_unknown() {
-        assert_eq!(provider_login_url("bedrock"), None);
-        assert_eq!(provider_login_url(""), None);
     }
 
     #[test]

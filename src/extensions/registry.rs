@@ -1,5 +1,4 @@
-// Fin — Extension Registry
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Extension Registry
 
 use super::api::{Extension, ExtensionContext, ExtensionManifest, ExtensionTier};
 use crate::tools::AgentTool;

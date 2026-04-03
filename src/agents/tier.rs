@@ -1,5 +1,4 @@
-// Fin — Cross-Provider Model Tier Mapping
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Cross-Provider Model Tier Mapping
 
 use crate::llm::models::{ModelConfig, resolve_model};
 

@@ -1,5 +1,4 @@
-// Fin — TUI Widget Helpers
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + TUI Widget Helpers
 
 use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
 use ratatui::prelude::*;

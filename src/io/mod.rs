@@ -1,5 +1,4 @@
-// Fin — I/O Adapters (Transport Layer)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + I/O Adapters (Transport Layer)
 
 pub mod agent_io;
 pub mod channel_io;

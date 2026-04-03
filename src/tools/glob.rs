@@ -1,5 +1,4 @@
-// Fin — Glob Tool (File Pattern Matching)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Glob Tool (File Pattern Matching)
 
 use async_trait::async_trait;
 use serde_json::json;

@@ -1,5 +1,4 @@
-// Fin — Ollama / OpenAI-Compatible Local LLM Provider
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Ollama / OpenAI-Compatible Local LLM Provider
 
 use async_trait::async_trait;
 use futures::stream::Stream;

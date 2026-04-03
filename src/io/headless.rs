@@ -1,5 +1,4 @@
-// Fin — Headless Mode (JSONL stdin/stdout)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Headless Mode (JSONL stdin/stdout)
 
 use serde::{Deserialize, Serialize};
 

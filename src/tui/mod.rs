@@ -1,5 +1,4 @@
-// Fin — Terminal User Interface (ratatui + crossterm)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Terminal User Interface (ratatui + crossterm)
 
 mod app;
 mod tui_io;

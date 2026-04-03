@@ -1,5 +1,4 @@
-// Fin — Workflow CLI Command Handlers
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Workflow CLI Command Handlers
 
 use std::path::Path;
 use std::sync::Arc;

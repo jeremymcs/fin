@@ -1,5 +1,4 @@
-// Fin — AWS Bedrock Provider (Claude via Bedrock)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + AWS Bedrock Provider (Claude via Bedrock)
 //
 // Uses AWS credentials (env vars, profile, or IAM role) for auth.
 // Bedrock uses binary EventStream framing for streaming, which is complex

@@ -1,5 +1,4 @@
-// Fin — Stage Runner Trait, Context, and Implementations
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Stage Runner Trait, Context, and Implementations
 
 pub mod advance;
 pub mod architect;

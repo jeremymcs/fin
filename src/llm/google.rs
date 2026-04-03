@@ -1,5 +1,4 @@
-// Fin — Google Gemini API Provider
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Google Gemini API Provider
 
 use async_trait::async_trait;
 use futures::stream::Stream;
@@ -124,10 +123,17 @@ impl LlmProvider for GoogleProvider {
         _cancel: CancellationToken,
     ) -> anyhow::Result<Pin<Box<dyn Stream<Item = StreamEvent> + Send + Unpin>>> {
         let auth = crate::config::auth::AuthStore::default();
-        let api_key = auth
-            .get_api_key("google")
-            .or_else(|| std::env::var("GEMINI_API_KEY").ok())
-            .ok_or_else(|| anyhow::anyhow!("GOOGLE_API_KEY or GEMINI_API_KEY not set"))?;
+        let env_api_key = std::env::var("GOOGLE_API_KEY")
+            .ok()
+            .or_else(|| std::env::var("GEMINI_API_KEY").ok());
+
+        let mut google_oauth = if env_api_key.is_none() {
+            auth.get_google_oauth()
+        } else {
+            None
+        };
+
+        let api_key = auth.get_api_key("google").or(env_api_key);
 
         let (system_instruction, contents) =
             Self::convert_messages(&context.system_prompt, &context.messages);
@@ -166,18 +172,39 @@ impl LlmProvider for GoogleProvider {
             });
         }
 
-        let url = format!(
-            "{}/models/{}:streamGenerateContent?alt=sse&key={}",
-            self.base_url, model.id, api_key
-        );
-
-        let response = self
-            .client
-            .post(&url)
-            .header("content-type", "application/json")
-            .json(&body)
-            .send()
+        let response = if let Some(ref mut oauth) = google_oauth {
+            let paths = crate::config::paths::FinPaths::resolve()?;
+            let access_token = crate::config::oauth::ensure_google_access_token(
+                &self.client,
+                &paths.auth_file,
+                oauth,
+            )
             .await?;
+            let mut request = self
+                .client
+                .post(format!(
+                    "{}/models/{}:streamGenerateContent?alt=sse",
+                    self.base_url, model.id
+                ))
+                .header("content-type", "application/json")
+                .header("Authorization", format!("Bearer {access_token}"));
+            if let Some(project_id) = oauth.project_id.as_deref() {
+                request = request.header("x-goog-user-project", project_id);
+            }
+            request.json(&body).send().await?
+        } else {
+            let api_key =
+                api_key.ok_or_else(|| anyhow::anyhow!("GOOGLE_API_KEY, GEMINI_API_KEY, or Google OAuth not set"))?;
+            self.client
+                .post(format!(
+                    "{}/models/{}:streamGenerateContent?alt=sse&key={}",
+                    self.base_url, model.id, api_key
+                ))
+                .header("content-type", "application/json")
+                .json(&body)
+                .send()
+                .await?
+        };
 
         if !response.status().is_success() {
             let status = response.status().as_u16();

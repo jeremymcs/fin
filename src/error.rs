@@ -1,5 +1,4 @@
-// Fin — Core Error Types
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Core Error Types
 
 #[allow(dead_code)]
 #[derive(thiserror::Error, Debug)]

@@ -1,5 +1,4 @@
-// Fin — Stage-Specific System Prompt Fragments
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Stage-Specific System Prompt Fragments
 
 use super::WorkflowPosition;
 

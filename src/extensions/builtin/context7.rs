@@ -1,5 +1,4 @@
-// Fin — Context7 Extension (Library Documentation Lookup)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Context7 Extension (Library Documentation Lookup)
 
 use async_trait::async_trait;
 use serde_json::json;

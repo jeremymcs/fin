@@ -1,5 +1,4 @@
-// Fin — Session Store (JSONL File-Based)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Session Store (JSONL File-Based)
 
 use crate::llm::types::Message;
 use std::path::{Path, PathBuf};

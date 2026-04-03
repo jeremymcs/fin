@@ -1,5 +1,4 @@
-// Fin — Context Handoff (Fresh Memory After /clear)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Context Handoff (Fresh Memory After /clear)
 
 use crate::llm::types::{Content, Message, Role};
 

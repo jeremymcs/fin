@@ -1,5 +1,4 @@
-// Fin — Channel IO Adapter (for HTTP SSE and other channel-based consumers)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Channel IO Adapter (for HTTP SSE and other channel-based consumers)
 
 use async_trait::async_trait;
 use tokio::sync::mpsc;

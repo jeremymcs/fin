@@ -1,5 +1,4 @@
-// Fin — Workflow Git Automation
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Workflow Git Automation
 
 use anyhow::Context;
 use std::path::{Path, PathBuf};

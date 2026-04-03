@@ -1,5 +1,4 @@
-// Fin — Model Registry
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Model Registry
 
 use serde::{Deserialize, Serialize};
 

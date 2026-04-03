@@ -1,5 +1,4 @@
-// Fin — Agent State Management
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Agent State Management
 
 use crate::llm::models::ModelConfig;
 use crate::llm::types::{Message, ThinkingLevel, Usage};

@@ -1,5 +1,4 @@
-// Fin — LLM Provider Layer
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + LLM Provider Layer
 
 pub mod anthropic;
 pub mod bedrock;

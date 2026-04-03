@@ -1,5 +1,4 @@
-// Fin — Integration Tests
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Integration Tests
 
 use assert_cmd::Command;
 use predicates::prelude::*;

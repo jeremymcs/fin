@@ -1,5 +1,4 @@
-// Fin — AI Coding Agent Entry Point
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + AI Coding Agent Entry Point
 
 mod agent;
 mod agents;

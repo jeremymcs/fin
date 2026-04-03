@@ -140,6 +140,8 @@ System prompt here...
 - Run `cargo test` to run all tests
 - Run `scripts/e2e_blueprint.sh --mode offline` for deterministic end-to-end blueprint workflow validation
 - Run `scripts/e2e_blueprint.sh --mode online` for live provider-backed workflow validation (requires API credentials)
+- E2E artifacts default to system temp (`$TMPDIR` or `/tmp`) to avoid polluting repo builds.
+- Override artifact location with `FIN_E2E_ARTIFACT_ROOT=/path`.
 
 ## Commit Messages
 

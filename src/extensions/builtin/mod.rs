@@ -1,5 +1,4 @@
-// Fin — Built-in Extensions
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Built-in Extensions
 
 pub mod context7;
 pub mod web_search;

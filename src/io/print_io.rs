@@ -1,5 +1,4 @@
-// Fin — Print/Headless IO Adapter
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Print/Headless IO Adapter
 
 use async_trait::async_trait;
 use std::io::Write;

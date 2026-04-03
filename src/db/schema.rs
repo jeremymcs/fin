@@ -1,5 +1,4 @@
-// Fin — Database Schema & Migration
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Database Schema & Migration
 
 #[allow(dead_code)]
 /// Current schema version. Bump this when adding migrations.

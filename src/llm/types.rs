@@ -1,5 +1,4 @@
-// Fin — LLM Core Types
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + LLM Core Types
 
 use serde::{Deserialize, Serialize};
 

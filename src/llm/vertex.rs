@@ -1,5 +1,4 @@
-// Fin — Google Vertex AI Provider (Claude via Vertex)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Google Vertex AI Provider (Claude via Vertex)
 //
 // Uses Google Application Default Credentials (ADC) for auth.
 // SSE streaming with same event format as the Anthropic API.

@@ -1,5 +1,4 @@
-// Fin — .fin/ Directory Manager
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + .fin/ Directory Manager
 
 use std::fs;
 use std::path::{Path, PathBuf};

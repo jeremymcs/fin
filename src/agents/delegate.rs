@@ -1,5 +1,4 @@
-// Fin — Delegate Tool (Sub-Agent Spawning)
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Delegate Tool (Sub-Agent Spawning)
 
 use std::sync::Arc;
 

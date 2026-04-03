@@ -1,5 +1,4 @@
-// Fin — Agent Delegation System
-// Copyright (c) 2026 Jeremy McSpadden <jeremy@fluxlabs.net>
+// Fin + Agent Delegation System
 
 pub mod collector_io;
 pub mod defaults;
